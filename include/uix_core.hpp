@@ -84,12 +84,8 @@ namespace uix {
             return m_bitmap.point(location,out_pixel);
         }
         gfx::gfx_result point(point16 location, pixel_type pixel) {
-            if(dimensions().bounds().intersects(location)) {
-                spoint16 loc = ((spoint16)location).offset(m_rect.x1,m_rect.y1);
-                if(((srect16)bounds()).intersects(loc)) {
-                    return m_bitmap.point((point16)loc,pixel);
-                }
-            } 
+            spoint16 loc = ((spoint16)location).offset(m_rect.x1,m_rect.y1);
+            return m_bitmap.point((point16)loc,pixel);
             return gfx::gfx_result::success;
         }
         gfx::gfx_result fill(const rect16& bounds, pixel_type pixel) {
@@ -160,10 +156,12 @@ namespace uix {
             }
             m_bounds = value;
         }
-        virtual void on_render(control_surface_type& destination,const srect16& clip) {
- 
+        virtual void on_paint(control_surface_type& destination,const srect16& clip) {
+            //gfx::draw::rectangle(destination,clip,gfx::color<pixel_type>::red);
+            //gfx::draw::rectangle(destination,destination.bounds(),gfx::color<pixel_type>::blue);
         }
-        virtual void on_touch(size_t locations_size,const spoint16* locations) {
+        virtual bool on_touch(size_t locations_size,const spoint16* locations) {
+            return false;
         };
         virtual void on_release() {
         };

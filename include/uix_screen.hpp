@@ -50,9 +50,156 @@ namespace uix {
             }
             return false;
         }
+        control_type** find_touch_target(spoint16 pt, control_type** pend = nullptr) {
+            // loop through the controls in z-order back to front
+            // find the last/front-most control whose bounds()
+            // intersect the first touch point
+            if(pend==nullptr) {
+                pend = m_controls.end();
+            }
+            control_type** target = nullptr;
+            for(control_type** ctl_it = m_controls.begin();ctl_it!=pend;++ctl_it) {
+                control_type* pctl = *ctl_it;
+                if(pctl->visible() && pctl->bounds().intersects(pt)) {
+                    target = ctl_it;
+                }
+            }
+            return target;
+        }
+        uix_result update_impl() {
+            // if not rendering, process touch
+            if(m_it_dirties==nullptr&& m_on_touch_callback!=nullptr) {
+                point16 locs[2];
+                spoint16 slocs[2];
+                size_t locs_size = sizeof(locs);
+                m_on_touch_callback(locs,&locs_size,m_on_touch_callback_state);
+                if(locs_size>0) {
+                    // if we currently have a touched control
+                    // forward all successive messages to that control
+                    // even if they're outside the control bounds.
+                    // that way we can do dragging if necessary.
+                    // this works like MS Windows.
+                    if(m_last_touched!=nullptr) {
+                        // offset the touch points to the control and then 
+                        // call on_touch for the control
+                        for(int i = 0;i<locs_size;++i) {
+                            slocs[i].x = locs[i].x-(int16_t)m_last_touched->bounds().x1;
+                            slocs[i].y = locs[i].y-(int16_t)m_last_touched->bounds().y1;
+                        }
+                        m_last_touched->on_touch(locs_size,slocs);
+          
+                    } else {
+                         // loop through the controls in z-order back to front
+                        // find the last/front-most control whose bounds()
+                        // intersect the first touch point
+                        spoint16 tpt = (spoint16)locs[0];
+                        control_type** ptarget = find_touch_target(tpt);
+                        if(ptarget!=nullptr) {
+                            for(int i = 0;i<locs_size;++i) {
+                                slocs[i].x = locs[i].x-(int16_t)(*ptarget)->bounds().x1;
+                                slocs[i].y = locs[i].y-(int16_t)(*ptarget)->bounds().y1;
+                            }
+                            while(ptarget!=nullptr && !(*ptarget)->on_touch(locs_size,slocs)) {
+                                ptarget = find_touch_target(tpt,ptarget);
+                            }
+                            m_last_touched = *ptarget;
+                        }
+                    }
+                } else {
+                    // released. if we have an active control let it know.
+                    if(m_last_touched!=nullptr) {
+                        m_last_touched->on_release();
+                        m_last_touched = nullptr;
+
+                    }
+                }
+            }
+            // rendering process
+            // note we skip this until we have a free buffer
+            if(m_on_flush_callback!=nullptr && 
+                    m_flushing<(1+(m_buffer2!=nullptr)) && 
+                    m_dirty_rects.size()!=0) {
+                if(m_it_dirties==nullptr) {
+                    // m_it_dirties is null when not rendering
+                    // so basically when it's null this is the first call
+                    // and we initialize some stuff
+                    m_it_dirties = m_dirty_rects.cbegin();
+                    size_t bmp_stride = bitmap_type::sizeof_buffer(size16(m_it_dirties->width(),1));
+                    m_bmp_lines = m_buffer_size/bmp_stride;
+                    if(bmp_stride>m_buffer_size) {
+                        return uix_result::out_of_memory;
+                    }
+                    m_bmp_y = 0;
+                } else {
+                    // if we're past the current 
+                    // dirty rectangle bounds:
+                    if(m_bmp_y+m_it_dirties->y1+m_bmp_lines>m_it_dirties->y2) {
+                        // go to the next dirty rectangle
+                        ++m_it_dirties;
+                        if(m_it_dirties==m_dirty_rects.cend()) {
+                            // if we're at the end, shut it down
+                            // and clear all dirty rects
+                            m_it_dirties = nullptr;
+                            return validate_all();
+                        }
+                        // now we compute the bitmap stride (one line, in bytes)
+                        size_t bmp_stride = bitmap_type::sizeof_buffer(size16(m_it_dirties->width(),1));
+                        // now we figure out how many lines we can have in these
+                        // subrects based on the total memory we're working with
+                        m_bmp_lines = m_buffer_size/bmp_stride;
+                        // if we don't have enough space for at least one line,
+                        // error out
+                        if(bmp_stride>m_buffer_size) {
+                            return uix_result::out_of_memory;
+                        }
+                        // start at the top of the dirty rectangle:
+                        m_bmp_y = 0;
+                    } else {
+                        // move down to the next subrect
+                        m_bmp_y+=m_bmp_lines;
+                    }
+                }
+                // create a subrect the same width as the dirty, and m_bmp_lines high
+                // starting at m_bmp_y within the dirty rectangle
+                srect16 subrect(m_it_dirties->x1,m_it_dirties->y1+m_bmp_y,m_it_dirties->x2, m_it_dirties->y1+m_bmp_lines+m_bmp_y-1);
+                // make sure the subrect is cropped within the bounds
+                // of the dirties. sometimes the last one overhangs.
+                subrect=subrect.crop((srect16)*m_it_dirties);
+                // create a bitmap for the subrect over the write buffer
+                bitmap_type bmp((size16)subrect.dimensions(),m_write_buffer,m_palette);
+                // fill it with the screen color
+                bmp.fill(bmp.bounds(),m_background_color);
+                // for each control
+                for(control_type** ctl_it = m_controls.begin();ctl_it!=m_controls.end();++ctl_it) {
+                    control_type* pctl = *ctl_it;
+                    // if it's visible and intersects this subrect
+                    if(pctl->visible() && pctl->bounds().intersects(subrect)) {
+                        // create the offset surface rectangle for drawing
+                        srect16 surface_rect = pctl->bounds();
+                        surface_rect.offset_inplace(-subrect.x1,-subrect.y1);
+                        // create the clip rectangle for the control
+                        srect16 surface_clip = pctl->bounds().crop(subrect);
+                        surface_clip.offset_inplace(-pctl->bounds().x1,-pctl->bounds().y1);
+                        // create the control surface
+                        control_surface_type surface(bmp,surface_rect);
+                        // and paint
+                        pctl->on_paint(surface,surface_clip);
+                    }
+                }
+                // tell it we're flushing and run the callback
+                ++m_flushing;
+                m_on_flush_callback((point16)subrect.top_left(),bmp,m_on_flush_callback_state);
+                // the above may return immediately before the 
+                // transfer is complete. To take advantage of
+                // this, rather than wait, we swap out to a
+                // second buffer and continue drawing while
+                // the transfer is in progress.
+                switch_buffers();
+            }
+            return uix_result::success;
+        }
         using dirty_rects_type = data::simple_vector<rect16>;
         using controls_type = data::simple_vector<control_type*>;
-        
         size_t m_buffer_size;
         uint8_t* m_write_buffer;
         uint8_t* m_buffer1, *m_buffer2;
@@ -170,87 +317,16 @@ namespace uix {
             m_on_touch_callback = callback;
             m_on_touch_callback_state = state;
         }
-        uix_result update() {
-            if(m_on_touch_callback!=nullptr) {
-                point16 locs[2];
-                spoint16 slocs[2];
-                size_t locs_size = sizeof(locs);
-                m_on_touch_callback(locs,&locs_size,m_on_touch_callback_state);
-                if(locs_size>0) {
-                    if(m_last_touched!=nullptr) {
-                        for(int i = 0;i<locs_size;++i) {
-                            slocs[i].x = locs[i].x-(int16_t)m_last_touched->bounds().x1;
-                            slocs[i].y = locs[i].y-(int16_t)m_last_touched->bounds().y1;
-                        }
-                        m_last_touched->on_touch(locs_size,slocs);
-                    } else {
-                        control_type* target = nullptr;
-                        for(control_type** ctl_it = m_controls.begin();ctl_it!=m_controls.end();++ctl_it) {
-                            control_type* pctl = *ctl_it;
-                            if(pctl->bounds().intersects((spoint16)locs[0])) {
-                                target = pctl;
-                            }
-                        }
-                        if(target!=nullptr) {
-                            m_last_touched = target;
-                            for(int i = 0;i<locs_size;++i) {
-                                slocs[i].x = locs[i].x-(int16_t)target->bounds().x1;
-                                slocs[i].y = locs[i].y-(int16_t)target->bounds().y1;
-                            }
-                            target->on_touch(locs_size,slocs);
-                        }
-                    }
-                } else {
-                    if(m_last_touched!=nullptr) {
-                        m_last_touched->on_release();
-                        m_last_touched = nullptr;
-                    }
-                }
+        uix_result update(bool full = true) {
+            uix_result res = update_impl();
+            if(res!=uix_result::success) {
+                return res;
             }
-            if(m_on_flush_callback!=nullptr && m_flushing<(1+(m_buffer2!=nullptr)) && m_dirty_rects.size()!=0) {
-                if(m_it_dirties==nullptr) {
-                    m_it_dirties = m_dirty_rects.cbegin();
-                    size_t bmp_stride = bitmap_type::sizeof_buffer(size16(m_it_dirties->width(),1));
-                    m_bmp_lines = m_buffer_size/bmp_stride;
-                    if(bmp_stride>m_buffer_size) {
-                        return uix_result::out_of_memory;
-                    }
-                    m_bmp_y = 0;
-                } else {
-                    if(m_bmp_y>=m_it_dirties->height()) {
-                        ++m_it_dirties;
-                        if(m_it_dirties==m_dirty_rects.cend()) {
-                            m_it_dirties = nullptr;
-                            return validate_all();
-                        }
-                        size_t bmp_stride = bitmap_type::sizeof_buffer(size16(m_it_dirties->width(),1));
-                        m_bmp_lines = m_buffer_size/bmp_stride;
-                        if(bmp_stride>m_buffer_size) {
-                            return uix_result::out_of_memory;
-                        }
-                        m_bmp_y = 0;
-                    } else {
-                        m_bmp_y+=m_bmp_lines;
-                    }
-                }
-                srect16 subrect(m_it_dirties->x1,m_it_dirties->y1+m_bmp_y,m_it_dirties->x2,m_it_dirties->y1+m_bmp_lines+m_bmp_y);
-                subrect=subrect.crop((srect16)*m_it_dirties);
-                bitmap_type bmp(size16(subrect.dimensions().width,m_bmp_lines),m_write_buffer,m_palette);
-                bmp.fill(bmp.bounds(),m_background_color);
-                for(control_type** ctl_it = m_controls.begin();ctl_it!=m_controls.end();++ctl_it) {
-                    control_type* pctl = *ctl_it;
-                    if(pctl->bounds().intersects(subrect)) {
-                        srect16 surface_rect = pctl->bounds();
-                        srect16 surface_clip = pctl->bounds().crop(subrect);
-                        surface_rect.offset_inplace(-subrect.x1,-subrect.y1);
-                        surface_clip.offset_inplace(-pctl->bounds().x1,-pctl->bounds().y1);
-                        control_surface_type surface(bmp,surface_rect);
-                        pctl->on_render(surface,surface_clip);
-                    }
-                }
-                ++m_flushing;
-                m_on_flush_callback((point16)subrect.top_left(),bmp,m_on_flush_callback_state);
-                switch_buffers();
+            while(full && m_it_dirties!=nullptr) {
+                res = update_impl();
+                if(res!=uix_result::success) {
+                    return res;
+                }   
             }
             return uix_result::success;
         }

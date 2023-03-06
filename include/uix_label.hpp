@@ -19,7 +19,7 @@ namespace uix {
         const gfx::font* m_fnt;
         size_t m_text_line_height;
         uix_justify m_text_justify;
-        pixel_type m_background_color, m_border_color,m_text_color;
+        gfx::rgba_pixel<32> m_background_color, m_border_color,m_text_color;
         label(const label& rhs)=delete;
         label& operator=(const label& rhs)=delete;
         void do_move(label& rhs) {
@@ -45,7 +45,7 @@ namespace uix {
         }
         
         label(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette), m_round_ratio(NAN),m_padding(4,4), m_text_line_height(25),m_text_justify(uix_justify::center) {
-            using color_t = gfx::color<pixel_type>;
+            using color_t = gfx::color<gfx::rgba_pixel<32>>;
             background_color(color_t::white);
             border_color(color_t::white);
             text_color(color_t::black);
@@ -101,31 +101,31 @@ namespace uix {
             m_fnt = value;
             this->invalidate();
         }
-        pixel_type background_color() const {
+        gfx::rgba_pixel<32> background_color() const {
             return m_background_color;
         }
-        void background_color(pixel_type value) {
+        void background_color(gfx::rgba_pixel<32> value) {
             m_background_color = value;
             this->invalidate();
         }
-        pixel_type border_color() const {
+        gfx::rgba_pixel<32> border_color() const {
             return m_border_color;
         }
-        void border_color(pixel_type value) {
+        void border_color(gfx::rgba_pixel<32> value) {
             m_border_color = value;
             this->invalidate();
         }
-        pixel_type text_color() const {
+        gfx::rgba_pixel<32> text_color() const {
             return m_text_color;
         }
-        void text_color(pixel_type value) {
+        void text_color(gfx::rgba_pixel<32> value) {
             m_text_color = value;
             this->invalidate();
         }
-        virtual void on_render(control_surface_type& destination,const srect16& clip) override {
+        virtual void on_paint(control_surface_type& destination,const srect16& clip) override {
             srect16 text_rect;
             int16_t offset_x,offset_y;
-            pixel_type background_color,border_color,text_color;
+            gfx::rgba_pixel<32> background_color,border_color,text_color;
             srect16 b=(srect16)this->dimensions().bounds();
             b=srect16(b.x1,b.y1,b.x2-2,b.y2-2);
             background_color = m_background_color;
@@ -178,7 +178,7 @@ namespace uix {
                             default: // top left
                                 break;
                         }
-                        gfx::draw::text(destination,text_rect,oti,text_color,pixel_type(),&clip);
+                        gfx::draw::text(destination,text_rect,oti,text_color,gfx::rgba_pixel<32>(),&clip);
                     } else if(m_fnt!=nullptr) {
                         gfx::text_info oti;
                         oti.font = m_fnt;
@@ -214,7 +214,7 @@ namespace uix {
                             default: // top left
                                 break;
                         }
-                        gfx::draw::text(destination,text_rect,oti,text_color,pixel_type(),&clip);
+                        gfx::draw::text(destination,text_rect,oti,text_color,gfx::rgba_pixel<32>(),&clip);
                     }
                 }
             }
@@ -224,7 +224,7 @@ namespace uix {
             } else {
                 gfx::draw::rounded_rectangle(destination,b,m_round_ratio,border_color,&clip);
             }
-            base_type::on_render(destination,clip);
+            base_type::on_paint(destination,clip);
         }
     };
 }
