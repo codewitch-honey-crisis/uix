@@ -5,4 +5,5 @@
 #include "uix_screen.hpp"
 #include "uix_label.hpp"
 #include "uix_push_button.hpp"
+#include "uix_svg_box.hpp"
 #endif
