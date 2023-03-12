@@ -171,7 +171,7 @@ namespace uix {
         void visible(bool value) {
             if(value!=m_visible) {
                 m_visible = value;
-                return this->invalidate();
+                this->invalidate();
             }
         }
         uix_result invalidate() {
