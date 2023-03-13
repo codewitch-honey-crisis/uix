@@ -20,6 +20,8 @@ namespace uix {
         size_t m_text_line_height;
         uix_justify m_text_justify;
         gfx::rgba_pixel<32> m_background_color, m_border_color,m_text_color;
+        srect16 m_text_rect;
+        float m_text_scale;
         label(const label& rhs)=delete;
         label& operator=(const label& rhs)=delete;
         void do_move(label& rhs) {
@@ -34,6 +36,8 @@ namespace uix {
             m_background_color = rhs.m_background_color;
             m_border_color = rhs.m_border_color;
             m_text_color = rhs.m_text_color;
+            m_text_rect = rhs.m_text_rect;
+            m_text_scale = rhs.m_text_scale;
         }
     public:
         label(label&& rhs) {
@@ -44,7 +48,7 @@ namespace uix {
             return *this;
         }
         
-        label(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette), m_round_ratio(NAN),m_padding(4,4), m_text_line_height(25),m_text_justify(uix_justify::center) {
+        label(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette), m_round_ratio(NAN),m_padding(4,4), m_text_line_height(25),m_text_justify(uix_justify::center),m_text_rect(0,0,0,0),m_text_scale(NAN) {
             using color_t = gfx::color<gfx::rgba_pixel<32>>;
             background_color(color_t::white);
             border_color(color_t::white);
@@ -57,6 +61,7 @@ namespace uix {
         }
         void text(const char* value) {
             m_text = value;
+            m_text_rect = {0,0,0,0};
             this->invalidate();
         }
         float round_ratio() const { 
@@ -71,6 +76,7 @@ namespace uix {
         }
         void padding(size16 value) {
             m_padding = value;
+            m_text_rect = {0,0,0,0};
             this->invalidate();
         }
         size_t text_line_height() const { 
@@ -78,6 +84,8 @@ namespace uix {
         }
         void text_line_height(size_t value) {
             m_text_line_height = value;
+            m_text_rect = {0,0,0,0};
+            m_text_scale = NAN;
             this->invalidate();
         }
         uix_justify text_justify() const { 
@@ -85,6 +93,7 @@ namespace uix {
         }
         void text_justify(uix_justify value) {
             m_text_justify = value;
+            m_text_rect = {0,0,0,0};
             this->invalidate();
         }
         const gfx::open_font* text_open_font() const { 
@@ -92,6 +101,8 @@ namespace uix {
         }
         void text_open_font(const gfx::open_font* value) {
             m_ofnt = value;
+            m_text_rect = {0,0,0,0};
+            m_text_scale = NAN;
             this->invalidate();
         }
         const gfx::font* text_font() const { 
@@ -99,6 +110,7 @@ namespace uix {
         }
         void text_font(const gfx::font* value) {
             m_fnt = value;
+            m_text_rect = {0,0,0,0};
             this->invalidate();
         }
         gfx::rgba_pixel<32> background_color() const {
@@ -123,7 +135,6 @@ namespace uix {
             this->invalidate();
         }
         virtual void on_paint(control_surface_type& destination,const srect16& clip) override {
-            srect16 text_rect;
             int16_t offset_x,offset_y;
             gfx::rgba_pixel<32> background_color,border_color,text_color;
             srect16 b=(srect16)this->dimensions().bounds();
@@ -146,75 +157,86 @@ namespace uix {
                         gfx::open_text_info oti;
                         oti.font = m_ofnt;
                         oti.text = m_text;
-                        oti.scale = oti.font->scale(m_text_line_height);
-                        text_rect = oti.font->measure_text(ssize16::max(),spoint16::zero(),oti.text,oti.scale,oti.scaled_tab_width,oti.encoding,oti.cache).bounds();
-                        switch(m_text_justify) {
-                            case uix_justify::top_middle:
-                                text_rect.center_horizontal_inplace((srect16)bb);
-                                break;
-                            case uix_justify::top_right:
-                                text_rect.offset_inplace(bb.width()-text_rect.width(),0);
-                                break;
-                            case uix_justify::center_left:
-                                text_rect.center_vertical_inplace((srect16)bb);
-                                break;
-                            case uix_justify::center:
-                                text_rect.center_inplace((srect16)bb);
-                                break;
-                            case uix_justify::center_right:
-                                text_rect.center_vertical_inplace((srect16)bb);
-                                text_rect.offset_inplace(bb.width()-text_rect.width(),0);
-                                break;
-                            case uix_justify::bottom_left:
-                                text_rect.offset_inplace(0,bb.height()-text_rect.height());
-                                break;
-                            case uix_justify::bottom_middle:
-                                text_rect.center_horizontal_inplace((srect16)bb);
-                                text_rect.offset_inplace(0,bb.height()-text_rect.height());
-                                break;
-                            case uix_justify::bottom_right:
-                                text_rect.offset_inplace(bb.width()-text_rect.width(),bb.height()-text_rect.height());
-                                break;
-                            default: // top left
-                                break;
+                        if(m_text_scale!=m_text_scale) {
+                            m_text_scale = oti.font->scale(m_text_line_height);
                         }
-                        gfx::draw::text(destination,text_rect,oti,text_color,gfx::rgba_pixel<32>(),&clip);
+                        oti.scale = m_text_scale;
+                        if(m_text_rect.x1==0&&m_text_rect.y1==0&&m_text_rect.x2==0&&m_text_rect.y2==0) {
+                            m_text_rect = oti.font->measure_text(ssize16::max(),spoint16::zero(),oti.text,oti.scale,oti.scaled_tab_width,oti.encoding,oti.cache).bounds();
+                            switch(m_text_justify) {
+                                case uix_justify::top_middle:
+                                    m_text_rect.center_horizontal_inplace((srect16)bb);
+                                    break;
+                                case uix_justify::top_right:
+                                    m_text_rect.offset_inplace(bb.width()-m_text_rect.width(),0);
+                                    break;
+                                case uix_justify::center_left:
+                                    m_text_rect.center_vertical_inplace((srect16)bb);
+                                    break;
+                                case uix_justify::center:
+                                    m_text_rect.center_inplace((srect16)bb);
+                                    break;
+                                case uix_justify::center_right:
+                                    m_text_rect.center_vertical_inplace((srect16)bb);
+                                    m_text_rect.offset_inplace(bb.width()-m_text_rect.width(),0);
+                                    break;
+                                case uix_justify::bottom_left:
+                                    m_text_rect.offset_inplace(0,bb.height()-m_text_rect.height());
+                                    break;
+                                case uix_justify::bottom_middle:
+                                    m_text_rect.center_horizontal_inplace((srect16)bb);
+                                    m_text_rect.offset_inplace(0,bb.height()-m_text_rect.height());
+                                    break;
+                                case uix_justify::bottom_right:
+                                    m_text_rect.offset_inplace(bb.width()-m_text_rect.width(),bb.height()-m_text_rect.height());
+                                    break;
+                                default: // top left
+                                    break;
+                            }
+                        }
+                        if(clip.intersects(m_text_rect)) {
+                            gfx::draw::text(destination,m_text_rect,oti,text_color,gfx::rgba_pixel<32>(),&clip);
+                        }
                     } else if(m_fnt!=nullptr) {
                         gfx::text_info oti;
                         oti.font = m_fnt;
                         oti.text = m_text;
-                        text_rect = oti.font->measure_text(ssize16::max(),oti.text,oti.tab_width).bounds();
-                        switch(m_text_justify) {
-                            case uix_justify::top_middle:
-                                text_rect.center_horizontal_inplace((srect16)b);
-                                break;
-                            case uix_justify::top_right:
-                                text_rect.offset_inplace(b.width()-text_rect.width(),0);
-                                break;
-                            case uix_justify::center_left:
-                                text_rect.center_vertical_inplace((srect16)b);
-                                break;
-                            case uix_justify::center:
-                                text_rect.center_inplace((srect16)b);
-                                break;
-                            case uix_justify::center_right:
-                                text_rect.center_vertical_inplace((srect16)b);
-                                text_rect.offset_inplace(b.width()-text_rect.width(),0);
-                                break;
-                            case uix_justify::bottom_left:
-                                text_rect.offset_inplace(0,b.height()-text_rect.height());
-                                break;
-                            case uix_justify::bottom_middle:
-                                text_rect.center_horizontal_inplace((srect16)b);
-                                text_rect.offset_inplace(0,b.height()-text_rect.height());
-                                break;
-                            case uix_justify::bottom_right:
-                                text_rect.offset_inplace(b.width()-text_rect.width(),b.height()-text_rect.height());
-                                break;
-                            default: // top left
-                                break;
+                        if(m_text_rect.x1==0&&m_text_rect.y1==0&&m_text_rect.x2==0&&m_text_rect.y2==0) {
+                            m_text_rect = oti.font->measure_text(ssize16::max(),oti.text,oti.tab_width).bounds();
+                            switch(m_text_justify) {
+                                case uix_justify::top_middle:
+                                    m_text_rect.center_horizontal_inplace((srect16)b);
+                                    break;
+                                case uix_justify::top_right:
+                                    m_text_rect.offset_inplace(b.width()-m_text_rect.width(),0);
+                                    break;
+                                case uix_justify::center_left:
+                                    m_text_rect.center_vertical_inplace((srect16)b);
+                                    break;
+                                case uix_justify::center:
+                                    m_text_rect.center_inplace((srect16)b);
+                                    break;
+                                case uix_justify::center_right:
+                                    m_text_rect.center_vertical_inplace((srect16)b);
+                                    m_text_rect.offset_inplace(b.width()-m_text_rect.width(),0);
+                                    break;
+                                case uix_justify::bottom_left:
+                                    m_text_rect.offset_inplace(0,b.height()-m_text_rect.height());
+                                    break;
+                                case uix_justify::bottom_middle:
+                                    m_text_rect.center_horizontal_inplace((srect16)b);
+                                    m_text_rect.offset_inplace(0,b.height()-m_text_rect.height());
+                                    break;
+                                case uix_justify::bottom_right:
+                                    m_text_rect.offset_inplace(b.width()-m_text_rect.width(),b.height()-m_text_rect.height());
+                                    break;
+                                default: // top left
+                                    break;
+                            }
                         }
-                        gfx::draw::text(destination,text_rect,oti,text_color,gfx::rgba_pixel<32>(),&clip);
+                        if(clip.intersects(m_text_rect)) {
+                            gfx::draw::text(destination,m_text_rect,oti,text_color,gfx::rgba_pixel<32>(),&clip);
+                        }
                     }
                 }
             }

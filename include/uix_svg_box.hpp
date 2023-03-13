@@ -18,6 +18,7 @@ class svg_box : public uix::control<PixelType, PaletteType> {
     using control_surface_type = typename base_type::control_surface_type;
     // member data
     gfx::svg_doc* m_svg;
+    srect16 m_rect;
     // no reason for copy semantics
     svg_box(const svg_box& rhs) = delete;
     svg_box& operator=(const svg_box& rhs) = delete;
@@ -25,6 +26,7 @@ class svg_box : public uix::control<PixelType, PaletteType> {
     void do_move(svg_box& rhs) {
         do_move_control(rhs);
         m_svg = rhs.m_svg;
+        m_rect = rhs.m_rect;
     }
 
    public:
@@ -41,11 +43,12 @@ class svg_box : public uix::control<PixelType, PaletteType> {
     void doc(gfx::svg_doc* value) {
         if (value != m_svg) {
             m_svg = value;
+            m_rect = {0,0,0,0};
             this->invalidate();
         }
     }
     svg_box(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
-        : base_type(parent, palette), m_svg(nullptr) {
+        : base_type(parent, palette), m_svg(nullptr), m_rect(0,0,0,0) {
     }
 
     virtual void on_paint(control_surface_type& destination, const uix::srect16& clip) override {
@@ -54,10 +57,16 @@ class svg_box : public uix::control<PixelType, PaletteType> {
         // if there's an SVG set, render it
         // scaled to the control
         if (m_svg != nullptr) {
-            gfx::draw::svg(destination,
-                           b,
-                           *m_svg,
-                           m_svg->scale(b.dimensions()));
+            float scale = m_svg->scale(b.dimensions());
+            if(m_rect.x1==0&&m_rect.y1==0&&m_rect.x2==0&&m_rect.y2==0) {
+                m_rect = srect16(0,0,m_svg->dimensions().width*scale-1,m_svg->dimensions().height*scale-1);
+            }
+            if(clip.intersects(m_rect)) {
+                gfx::draw::svg(destination,
+                            b,
+                            *m_svg,
+                            scale,&clip);
+            }
         }
         // call the base on paint method
         base_type::on_paint(destination, clip);
