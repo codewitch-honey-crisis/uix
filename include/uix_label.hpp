@@ -127,7 +127,7 @@ namespace uix {
             int16_t offset_x,offset_y;
             gfx::rgba_pixel<32> background_color,border_color,text_color;
             srect16 b=(srect16)this->dimensions().bounds();
-            b=srect16(b.x1,b.y1,b.x2-2,b.y2-2);
+            b=srect16(b.x1,b.y1,b.x2,b.y2);
             background_color = m_background_color;
             border_color = m_border_color;
             text_color = m_text_color;
