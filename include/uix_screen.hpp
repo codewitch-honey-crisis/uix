@@ -35,6 +35,7 @@ namespace uix {
             m_bmp_lines = rhs.m_bmp_lines;
             rhs.m_bmp_lines = 0;
             m_bmp_y = rhs.m_bmp_y;
+            m_last_touched = rhs.m_last_touched;
             m_on_touch_callback = rhs.m_on_touch_callback;
             rhs.m_on_touch_callback = nullptr;
             m_on_touch_callback_state = rhs.m_on_touch_callback_state;
@@ -69,8 +70,8 @@ namespace uix {
         uix_result update_impl() {
             // if not rendering, process touch
             if(m_it_dirties==nullptr&& m_on_touch_callback!=nullptr) {
-                point16 locs[2];
-                spoint16 slocs[2];
+                point16 locs[5];
+                spoint16 slocs[5];
                 size_t locs_size = sizeof(locs);
                 m_on_touch_callback(locs,&locs_size,m_on_touch_callback_state);
                 if(locs_size>0) {
