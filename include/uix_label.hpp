@@ -135,15 +135,12 @@ namespace uix {
             this->invalidate();
         }
         virtual void on_paint(control_surface_type& destination,const srect16& clip) override {
-            int16_t offset_x,offset_y;
             gfx::rgba_pixel<32> background_color,border_color,text_color;
             srect16 b=(srect16)this->dimensions().bounds();
             b=srect16(b.x1,b.y1,b.x2,b.y2);
             background_color = m_background_color;
             border_color = m_border_color;
             text_color = m_text_color;
-            offset_x = 0;
-            offset_y = 0;
             b.inflate_inplace(-1,-1);
             if(m_round_ratio!=m_round_ratio) {
                 gfx::draw::filled_rectangle(destination,b,background_color,&clip);
