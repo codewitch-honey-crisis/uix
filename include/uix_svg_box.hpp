@@ -17,7 +17,7 @@ class svg_box : public uix::control<PixelType, PaletteType> {
     using base_type = uix::control<PixelType, PaletteType>;
     using control_surface_type = typename base_type::control_surface_type;
     // member data
-    gfx::svg_doc* m_svg;
+    const gfx::svg_doc* m_svg;
     srect16 m_rect;
     uix_justify m_justify;
     // no reason for copy semantics
@@ -39,10 +39,10 @@ class svg_box : public uix::control<PixelType, PaletteType> {
         do_move(rhs);
         return *this;
     }
-    gfx::svg_doc* doc() const {
+    const gfx::svg_doc* doc() const {
         return m_svg;
     }
-    void doc(gfx::svg_doc* value) {
+    void doc(const gfx::svg_doc* value) {
         if (value != m_svg) {
             m_svg = value;
             m_rect = {0,0,0,0};
