@@ -6,4 +6,5 @@
 #include "uix_label.hpp"
 #include "uix_push_button.hpp"
 #include "uix_svg_box.hpp"
+#include "uix_canvas.hpp"
 #endif
