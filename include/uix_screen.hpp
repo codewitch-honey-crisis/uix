@@ -167,7 +167,8 @@ namespace uix {
                 // of the dirties. sometimes the last one overhangs.
                 subrect=subrect.crop((srect16)*m_it_dirties);
                 // create a bitmap for the subrect over the write buffer
-                bitmap_type bmp((size16)subrect.dimensions(),m_write_buffer,m_palette);
+                uint8_t* buf = (uint8_t*)m_write_buffer;
+                bitmap_type bmp((size16)subrect.dimensions(),buf,m_palette);
                 // fill it with the screen color
                 bmp.fill(bmp.bounds(),m_background_color);
                 // for each control
@@ -202,10 +203,10 @@ namespace uix {
         using dirty_rects_type = data::simple_vector<rect16>;
         using controls_type = data::simple_vector<control_type*>;
         size_t m_buffer_size;
-        uint8_t* m_write_buffer;
+        volatile uint8_t* m_write_buffer;
         uint8_t* m_buffer1, *m_buffer2;
         const palette_type* m_palette;
-        int m_flushing;
+        volatile int m_flushing;
         on_flush_callback_type m_on_flush_callback;
         void* m_on_flush_callback_state;
         dirty_rects_type m_dirty_rects;
