@@ -2,13 +2,13 @@
 #define HTCW_UIX_CANVAS_HPP
 #include "uix_core.hpp"
 namespace uix {
-    template<typename PixelType,typename PaletteType = gfx::palette<PixelType,PixelType>> class canvas : public control<PixelType,PaletteType> {
+    template<typename ControlSurfaceType> class canvas : public control<ControlSurfaceType> {
     public:
         using type = canvas;
-        using base_type = control<PixelType, PaletteType>;
-        using pixel_type = PixelType;
-        using palette_type = PaletteType;
-        using control_surface_type = typename base_type::control_surface_type;
+        using base_type = control<ControlSurfaceType>;
+        using pixel_type = typename ControlSurfaceType::pixel_type;
+        using palette_type = typename ControlSurfaceType::palette_type;
+        using control_surface_type = ControlSurfaceType;
         typedef void(*on_paint_callback_type)(control_surface_type& destination,const srect16& clip,void* state);
     private:
         on_paint_callback_type m_on_paint_cb;

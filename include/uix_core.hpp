@@ -42,13 +42,13 @@ namespace uix {
             return static_cast<typename uix_remove_reference<T>::type&&>(arg);
         }
     }
-    template<typename PixelType,typename PaletteType = gfx::palette<PixelType,PixelType>>
+    template<typename BitmapType>
     class control_surface final {
     public:
         using type = control_surface;
-        using pixel_type = PixelType;
-        using palette_type = PaletteType;
-        using bitmap_type= gfx::bitmap<pixel_type,palette_type>;
+        using pixel_type = typename BitmapType::pixel_type;
+        using palette_type = typename BitmapType::palette_type;
+        using bitmap_type= BitmapType;
         using caps = gfx::gfx_caps<false,false,false,false,false,true,false>;
     private:
         bitmap_type& m_bitmap;
@@ -90,10 +90,8 @@ namespace uix {
         }
         gfx::gfx_result fill(const rect16& bounds, pixel_type pixel) {
             if(bounds.intersects(this->dimensions().bounds())) {
-                //Serial.printf("fill: (%d,%d)-(%d,%d) ",(int)bounds.x1,(int)bounds.y1,(int)bounds.x2,(int)bounds.y2);
-                srect16 b = ((srect16)bounds);//.crop((srect16)this->dimensions().bounds());
+                srect16 b = ((srect16)bounds);
                 b=b.offset(m_rect.x1,m_rect.y1);
-                //Serial.printf("to (%d,%d)-(%d,%d)\n",(int)b.x1,(int)b.y1,(int)b.x2,(int)b.y2);
                 if(b.intersects((srect16)m_bitmap.bounds())) {
                     b=b.crop((srect16)m_bitmap.bounds());
                     return m_bitmap.fill((rect16)b,pixel);
@@ -110,16 +108,16 @@ namespace uix {
         virtual uix_result invalidate(const srect16& rect)=0;
         virtual uix_result validate_all()=0;
     };
-    template<typename PixelType,typename PaletteType = gfx::palette<PixelType,PixelType>>
+    template<typename ControlSurfaceType>
     class control {
     public:
         using type = control;
-        using pixel_type = PixelType;
-        using palette_type = PaletteType;
-        using control_surface_type = control_surface<pixel_type,palette_type>;
+        using pixel_type = typename ControlSurfaceType::pixel_type;
+        using palette_type = typename ControlSurfaceType::palette_type;
+        using control_surface_type = ControlSurfaceType;
     private:        
         srect16 m_bounds;
-        const PaletteType* m_palette;
+        const palette_type* m_palette;
         bool m_visible;
         invalidation_tracker& m_parent;
         control(const control& rhs)=delete;
@@ -157,8 +155,6 @@ namespace uix {
             m_bounds = value;
         }
         virtual void on_paint(control_surface_type& destination,const srect16& clip) {
-            //gfx::draw::rectangle(destination,clip,gfx::color<pixel_type>::red);
-            //gfx::draw::rectangle(destination,destination.bounds(),gfx::color<pixel_type>::blue);
         }
         virtual bool on_touch(size_t locations_size,const spoint16* locations) {
             return false;

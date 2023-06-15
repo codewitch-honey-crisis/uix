@@ -2,21 +2,25 @@
 #define HTCW_UIX_SCREEN_HPP
 #include "uix_core.hpp"
 namespace uix {
-    template<uint16_t Width, uint16_t Height, typename PixelType,typename PaletteType = gfx::palette<PixelType,PixelType>>
-    class screen final : public invalidation_tracker {
+    template<uint16_t Width, uint16_t Height, typename BitmapType, uint8_t HorizontalAlignment = 1, uint8_t VerticalAlignment = 1>
+    class screen_ex final : public invalidation_tracker {
     public:
-        using type = screen;
-        using pixel_type = PixelType;
-        using palette_type = PaletteType;
-        using bitmap_type = gfx::bitmap<pixel_type,palette_type>;
-        using control_type = control<pixel_type,palette_type>;
-        using control_surface_type = control_surface<pixel_type,palette_type>;
-        typedef void(*on_flush_callback_type)(point16 location,gfx::bitmap<pixel_type,palette_type>& bmp,void* state);
+        using type = screen_ex;
+        using native_bitmap_type = gfx::bitmap<typename BitmapType::pixel_type,typename BitmapType::palette_type>;
+        using bitmap_type = BitmapType;
+        using pixel_type = typename bitmap_type::pixel_type;
+        using palette_type = typename bitmap_type::palette_type;
+        using control_surface_type = control_surface<BitmapType>;
+        using control_type = control<control_surface_type>;
+        
+        typedef void(*on_flush_callback_type)(const rect16& bounds,const void* bmp,void* state);
         typedef void(*on_touch_callback_type)(point16* out_locations,size_t* in_out_locations_size,void* state);
+        constexpr static const uint8_t horizontal_alignment = HorizontalAlignment;
+        constexpr static const uint8_t vertical_alignment = VerticalAlignment;
     private:
-        screen(const screen& rhs)=delete;
-        screen& operator=(const screen& rhs)=delete;
-        void do_move(screen& rhs) {
+        screen_ex(const screen_ex& rhs)=delete;
+        screen_ex& operator=(const screen_ex& rhs)=delete;
+        void do_move(screen_ex& rhs) {
             m_buffer_size = rhs.m_buffer_size;
             rhs.m_buffer_size = 0;
             m_write_buffer = rhs.m_write_buffer;
@@ -39,6 +43,31 @@ namespace uix {
             m_on_touch_callback = rhs.m_on_touch_callback;
             rhs.m_on_touch_callback = nullptr;
             m_on_touch_callback_state = rhs.m_on_touch_callback_state;
+        }
+        template<typename T>
+        constexpr static T h_align_up(T value) {
+            if (value % horizontal_alignment != 0)
+                value += (T)(horizontal_alignment - value % horizontal_alignment);
+            return value;
+        }
+        template<typename T>
+        constexpr static T h_align_down(T value) {
+            value -= value % horizontal_alignment;
+            return value;
+        }
+        template<typename T>
+        constexpr static T v_align_up(T value) {
+            if (value % vertical_alignment != 0)
+                value += (T)(vertical_alignment - value % vertical_alignment);
+            return value;
+        }
+        template<typename T>
+        constexpr static T v_align_down(T value) {
+            value -= value % vertical_alignment;
+            return value;
+        }
+        constexpr static rect16 align_up(const rect16& value) {
+            return rect16(h_align_down(value.x1),v_align_down(value.y1),h_align_up(value.x2),v_align_up(value.y2));
         }
         bool switch_buffers() {
             if(m_buffer2!=nullptr) {
@@ -125,16 +154,19 @@ namespace uix {
                     // so basically when it's null this is the first call
                     // and we initialize some stuff
                     m_it_dirties = m_dirty_rects.cbegin();
-                    size_t bmp_stride = bitmap_type::sizeof_buffer(size16(m_it_dirties->width(),1));
-                    m_bmp_lines = m_buffer_size/bmp_stride;
-                    if(bmp_stride>m_buffer_size) {
+                    const rect16 aligned = align_up(*m_it_dirties);
+                    size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(aligned.width(),1));
+                    size_t bmp_min = native_bitmap_type::sizeof_buffer(size16(aligned.width(),v_align_up(1)));
+                    m_bmp_lines = v_align_down(m_buffer_size/bmp_stride);
+                    if(bmp_min>m_buffer_size) {
                         return uix_result::out_of_memory;
                     }
                     m_bmp_y = 0;
                 } else {
                     // if we're past the current 
                     // dirty rectangle bounds:
-                    if(m_bmp_y+m_it_dirties->y1+m_bmp_lines>m_it_dirties->y2) {
+                    rect16 aligned = align_up(*m_it_dirties);
+                    if(m_bmp_y+aligned.y1+m_bmp_lines>aligned.y2) {
                         // go to the next dirty rectangle
                         ++m_it_dirties;
                         if(m_it_dirties==m_dirty_rects.cend()) {
@@ -143,14 +175,16 @@ namespace uix {
                             m_it_dirties = nullptr;
                             return validate_all();
                         }
+                        aligned = align_up(*m_it_dirties);
                         // now we compute the bitmap stride (one line, in bytes)
-                        size_t bmp_stride = bitmap_type::sizeof_buffer(size16(m_it_dirties->width(),1));
+                        size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(aligned.width(),1));
+                        size_t bmp_min = native_bitmap_type::sizeof_buffer(size16(aligned.width(),v_align_up(1)));
                         // now we figure out how many lines we can have in these
                         // subrects based on the total memory we're working with
-                        m_bmp_lines = m_buffer_size/bmp_stride;
+                        m_bmp_lines = v_align_down(m_buffer_size/bmp_stride);
                         // if we don't have enough space for at least one line,
                         // error out
-                        if(bmp_stride>m_buffer_size) {
+                        if(bmp_min>m_buffer_size) {
                             return uix_result::out_of_memory;
                         }
                         // start at the top of the dirty rectangle:
@@ -160,12 +194,13 @@ namespace uix {
                         m_bmp_y+=m_bmp_lines;
                     }
                 }
+                const rect16 aligned = align_up(*m_it_dirties);
                 // create a subrect the same width as the dirty, and m_bmp_lines high
                 // starting at m_bmp_y within the dirty rectangle
-                srect16 subrect(m_it_dirties->x1,m_it_dirties->y1+m_bmp_y,m_it_dirties->x2, m_it_dirties->y1+m_bmp_lines+m_bmp_y-1);
+                srect16 subrect(aligned.x1,aligned.y1+m_bmp_y,aligned.x2, aligned.y1+m_bmp_lines+m_bmp_y-1);
                 // make sure the subrect is cropped within the bounds
                 // of the dirties. sometimes the last one overhangs.
-                subrect=subrect.crop((srect16)*m_it_dirties);
+                subrect=subrect.crop((srect16)aligned);
                 // create a bitmap for the subrect over the write buffer
                 uint8_t* buf = (uint8_t*)m_write_buffer;
                 bitmap_type bmp((size16)subrect.dimensions(),buf,m_palette);
@@ -190,7 +225,7 @@ namespace uix {
                 }
                 // tell it we're flushing and run the callback
                 ++m_flushing;
-                m_on_flush_callback((point16)subrect.top_left(),bmp,m_on_flush_callback_state);
+                m_on_flush_callback((rect16)subrect,bmp.begin(),m_on_flush_callback_state);
                 // the above may return immediately before the 
                 // transfer is complete. To take advantage of
                 // this, rather than wait, we swap out to a
@@ -219,7 +254,7 @@ namespace uix {
         void* m_on_touch_callback_state;
         control_type* m_last_touched;
     public:
-        screen(size_t buffer_size, uint8_t* buffer, uint8_t* buffer2 = nullptr, const palette_type* palette = nullptr)
+        screen_ex(size_t buffer_size, uint8_t* buffer, uint8_t* buffer2 = nullptr, const palette_type* palette = nullptr)
                 : m_buffer_size(buffer_size), 
                     m_write_buffer(buffer),
                     m_buffer1(buffer),
@@ -237,10 +272,10 @@ namespace uix {
                     m_last_touched(nullptr)
                 {
         }
-        screen(screen&& rhs) {
+        screen_ex(screen_ex&& rhs) {
             do_move(rhs);
         }
-        screen& operator=(screen&& rhs) {
+        screen_ex& operator=(screen_ex&& rhs) {
             do_move(rhs);
             return *this;
         }
@@ -333,5 +368,7 @@ namespace uix {
             return uix_result::success;
         }
     };
+    template<uint16_t Width, uint16_t Height, typename PixelType, typename PaletteType = gfx::palette<PixelType,PixelType>>
+    using screen = screen_ex<Width,Height, gfx::bitmap<PixelType,PaletteType>>;
 }
 #endif

@@ -3,19 +3,19 @@
 #include "uix_core.hpp"
 namespace uix {
 
-template <typename PixelType, typename PaletteType = gfx::palette<PixelType, PixelType>>
-class svg_box : public uix::control<PixelType, PaletteType> {
+template <typename ControlSurfaceType>
+class svg_box : public uix::control<ControlSurfaceType> {
     // public and private type aliases
     // pixel_type and palette_type are
     // required on any control
    public:
     using type = svg_box;
-    using pixel_type = PixelType;
-    using palette_type = PaletteType;
+    using pixel_type = typename ControlSurfaceType::pixel_type;
+    using palette_type = typename ControlSurfaceType::palette_type;
 
    private:
-    using base_type = uix::control<PixelType, PaletteType>;
-    using control_surface_type = typename base_type::control_surface_type;
+    using base_type = uix::control<ControlSurfaceType>;
+    using control_surface_type = ControlSurfaceType;
     // member data
     const gfx::svg_doc* m_svg;
     srect16 m_rect;

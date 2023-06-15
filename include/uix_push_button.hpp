@@ -2,14 +2,15 @@
 #define HTCW_UIX_PUSH_BUTTON_HPP
 #include "uix_core.hpp"
 namespace uix {
-    template<typename PixelType,typename PaletteType = gfx::palette<PixelType,PixelType>>
-    class push_button final : public control<PixelType, PaletteType> {
+    template<typename ControlSurfaceType>
+    class push_button final : public control<ControlSurfaceType> {
     public:
         using type = push_button;
-        using base_type = control<PixelType, PaletteType>;
-        using pixel_type = PixelType;
-        using palette_type = PaletteType;
-        using control_surface_type = typename base_type::control_surface_type;
+        using base_type = control<ControlSurfaceType>;
+        using pixel_type = typename ControlSurfaceType::pixel_type;
+        using palette_type = typename ControlSurfaceType::palette_type;
+        using control_surface_type = ControlSurfaceType;
+
         typedef void(*on_pressed_changed_callback_type)(bool pressed,void* state);
     private:
         bool m_pressed;
