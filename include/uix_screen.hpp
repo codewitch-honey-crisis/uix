@@ -158,6 +158,9 @@ namespace uix {
                     size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(aligned.width(),1));
                     size_t bmp_min = native_bitmap_type::sizeof_buffer(size16(aligned.width(),v_align_up(1)));
                     m_bmp_lines = v_align_down(m_buffer_size/bmp_stride);
+                    if(m_bmp_lines>dimensions().height) {
+                        m_bmp_lines=dimensions().height;
+                    }
                     if(bmp_min>m_buffer_size) {
                         return uix_result::out_of_memory;
                     }
@@ -182,6 +185,9 @@ namespace uix {
                         // now we figure out how many lines we can have in these
                         // subrects based on the total memory we're working with
                         m_bmp_lines = v_align_down(m_buffer_size/bmp_stride);
+                        if(m_bmp_lines>dimensions().height) {
+                            m_bmp_lines=dimensions().height;
+                        }
                         // if we don't have enough space for at least one line,
                         // error out
                         if(bmp_min>m_buffer_size) {
