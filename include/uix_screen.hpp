@@ -67,7 +67,15 @@ namespace uix {
             return value;
         }
         constexpr static rect16 align_up(const rect16& value) {
-            return rect16(h_align_down(value.x1),v_align_down(value.y1),h_align_up(value.x2),v_align_up(value.y2));
+            int x2 = h_align_up(value.x2);
+            if(horizontal_alignment!=1) {
+                --x2;
+            }
+            int y2 = v_align_up(value.y2);
+            if(vertical_alignment!=1) {
+                --y2;
+            }
+            return rect16(h_align_down(value.x1),v_align_down(value.y1),x2,y2);
         }
         bool switch_buffers() {
             if(m_buffer2!=nullptr) {
@@ -169,7 +177,7 @@ namespace uix {
                     // if we're past the current 
                     // dirty rectangle bounds:
                     rect16 aligned = align_up(*m_it_dirties);
-                    if(m_bmp_y+aligned.y1+m_bmp_lines>aligned.y2) {
+                    if(m_bmp_y+aligned.y1+m_bmp_lines>=aligned.y2) {
                         // go to the next dirty rectangle
                         ++m_it_dirties;
                         if(m_it_dirties==m_dirty_rects.cend()) {
