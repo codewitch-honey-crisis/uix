@@ -1,6 +1,6 @@
 {
     "name": "htcw_uix",
-    "version": "0.2.01",
+    "version": "0.2.1",
     "description": "A UI library for embedded and IoT devices, for use with htcw_gfx",
     "keywords": ["tft", "UX","UI","GUI","user-experience","user-interface", "graphics", "spi", "parallel", "i2c", "drawing", "jpg", "ttf", "font"],
     "authors": {
