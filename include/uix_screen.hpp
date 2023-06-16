@@ -12,7 +12,7 @@ namespace uix {
         using palette_type = typename bitmap_type::palette_type;
         using control_surface_type = control_surface<BitmapType>;
         using control_type = control<control_surface_type>;
-        
+        typedef void(*wait_flush_callback_type)(void* state);
         typedef void(*on_flush_callback_type)(const rect16& bounds,const void* bmp,void* state);
         typedef void(*on_touch_callback_type)(point16* out_locations,size_t* in_out_locations_size,void* state);
         constexpr static const uint8_t horizontal_alignment = HorizontalAlignment;
@@ -28,6 +28,9 @@ namespace uix {
             m_buffer2 = rhs.m_buffer2;
             m_palette = rhs.m_palette;
             m_flushing = rhs.m_flushing;
+            m_wait_flush_callback = rhs.m_wait_flush_callback;
+            rhs.m_wait_flush_callback = nullptr;
+            m_wait_flush_callback_state = rhs.m_wait_flush_callback_state;
             m_on_flush_callback = rhs.m_on_flush_callback;
             rhs.m_on_flush_callback = nullptr;
             m_on_flush_callback_state = rhs.m_on_flush_callback_state;
@@ -82,9 +85,18 @@ namespace uix {
                 if(m_buffer1==m_write_buffer) {
                     m_write_buffer = m_buffer2;
                 } else {
+                    if(m_wait_flush_callback!=nullptr) {
+                        m_wait_flush_callback(m_wait_flush_callback_state);
+                        m_flushing=0;
+                    }
                     m_write_buffer = m_buffer1;
                 }
                 return true;
+            } else {
+                if(m_wait_flush_callback!=nullptr) {
+                    m_wait_flush_callback(m_wait_flush_callback_state);
+                    m_flushing=0;
+                }
             }
             return false;
         }
@@ -256,6 +268,8 @@ namespace uix {
         uint8_t* m_buffer1, *m_buffer2;
         const palette_type* m_palette;
         volatile int m_flushing;
+        wait_flush_callback_type m_wait_flush_callback;
+        void* m_wait_flush_callback_state;
         on_flush_callback_type m_on_flush_callback;
         void* m_on_flush_callback_state;
         dirty_rects_type m_dirty_rects;
@@ -275,6 +289,8 @@ namespace uix {
                     m_buffer2(buffer2),
                     m_palette(palette),
                     m_flushing(0),
+                    m_wait_flush_callback(nullptr),
+                    m_wait_flush_callback_state(nullptr),
                     m_on_flush_callback(nullptr),
                     m_on_flush_callback_state(nullptr),
                     m_background_color(pixel_type()),
@@ -358,6 +374,16 @@ namespace uix {
             m_on_flush_callback = callback;
             m_on_flush_callback_state = state;
         }
+        wait_flush_callback_type wait_flush_callback() const {
+            return m_wait_flush_callback;
+        }
+        void* wait_flush_callback_state() const {
+            return m_wait_flush_callback_state;
+        }
+        void wait_flush_callback(wait_flush_callback_type callback, void* state = nullptr) {
+            m_wait_flush_callback = callback;
+            m_wait_flush_callback_state = state;
+        }
         on_touch_callback_type on_touch_callback() const {
             return m_on_touch_callback;
         }
@@ -380,6 +406,9 @@ namespace uix {
                 }   
             }
             return uix_result::success;
+        }
+        bool is_dirty() const {
+            return this->m_dirty_rects.size()!=0;
         }
     };
     template<uint16_t Width, uint16_t Height, typename PixelType, typename PaletteType = gfx::palette<PixelType,PixelType>>
