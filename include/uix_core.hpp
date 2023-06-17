@@ -1,6 +1,13 @@
 #ifndef HTCW_UIX_CORE_HPP
 #define HTCW_UIX_CORE_HPP
-#include <gfx.hpp>
+#include <gfx_core.hpp>
+#include <gfx_pixel.hpp>
+#include <gfx_palette.hpp>
+#include <gfx_positioning.hpp>
+#include <gfx_bitmap.hpp>
+#include <gfx_font.hpp>
+#include <gfx_open_font.hpp>
+#include <gfx_viewport.hpp>
 namespace uix {
     using point16 = gfx::point16;
     using spoint16 = gfx::spoint16;

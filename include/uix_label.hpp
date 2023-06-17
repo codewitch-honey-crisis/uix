@@ -49,10 +49,11 @@ namespace uix {
         }
         
         label(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette), m_round_ratio(NAN),m_padding(4,4), m_text_line_height(25),m_text_justify(uix_justify::center),m_text_rect(0,0,0,0),m_text_scale(NAN) {
-            using color_t = gfx::color<gfx::rgba_pixel<32>>;
-            background_color(color_t::white);
-            border_color(color_t::white);
-            text_color(color_t::black);
+            const auto white = gfx::rgba_pixel<32>(0xFF,0xFF,0xFF,0xFF);
+            const auto black = gfx::rgba_pixel<32>(0x00,0x00,0x00,0xFF);
+            background_color(white);
+            border_color(white);
+            text_color(black);
             m_ofnt = nullptr;
             m_fnt = nullptr;
         }

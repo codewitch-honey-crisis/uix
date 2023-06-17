@@ -1,6 +1,7 @@
 #ifndef HTCW_UIX_SVG_BOX
 #define HTCW_UIX_SVG_BOX
 #include "uix_core.hpp"
+#include <gfx_svg_doc.hpp>
 namespace uix {
 
 template <typename ControlSurfaceType>

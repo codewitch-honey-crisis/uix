@@ -1,6 +1,7 @@
 #ifndef HTCW_UIX_SCREEN_HPP
 #define HTCW_UIX_SCREEN_HPP
 #include "uix_core.hpp"
+#include <htcw_data.hpp>
 namespace uix {
     template<uint16_t Width, uint16_t Height, typename BitmapType, uint8_t HorizontalAlignment = 1, uint8_t VerticalAlignment = 1>
     class screen_ex final : public invalidation_tracker {
@@ -132,7 +133,7 @@ namespace uix {
                     if(m_last_touched!=nullptr) {
                         // offset the touch points to the control and then 
                         // call on_touch for the control
-                        for(int i = 0;i<locs_size;++i) {
+                        for(size_t i = 0;i<locs_size;++i) {
                             slocs[i].x = locs[i].x-(int16_t)m_last_touched->bounds().x1;
                             slocs[i].y = locs[i].y-(int16_t)m_last_touched->bounds().y1;
                         }
@@ -145,7 +146,7 @@ namespace uix {
                         spoint16 tpt = (spoint16)locs[0];
                         control_type** ptarget = find_touch_target(tpt);
                         if(ptarget!=nullptr) {
-                            for(int i = 0;i<locs_size;++i) {
+                            for(size_t i = 0;i<locs_size;++i) {
                                 slocs[i].x = locs[i].x-(int16_t)(*ptarget)->bounds().x1;
                                 slocs[i].y = locs[i].y-(int16_t)(*ptarget)->bounds().y1;
                             }

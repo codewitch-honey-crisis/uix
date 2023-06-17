@@ -57,10 +57,11 @@ namespace uix {
         }
         
         push_button(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette), m_pressed(false),m_on_pressed_changed_callback(nullptr),m_on_pressed_changed_callback_state(nullptr), m_round_ratio(NAN),m_padding(4,4), m_text_line_height(25),m_text_justify(uix_justify::center) {
-            using color_t = gfx::color<gfx::rgba_pixel<32>>;
-            background_color(color_t::white,true);
-            border_color(color_t::black,true);
-            text_color(color_t::black,true);
+            const auto white = gfx::rgba_pixel<32>(0xFF,0xFF,0xFF,0xFF);
+            const auto black = gfx::rgba_pixel<32>(0x00,0x00,0x00,0xFF);
+            background_color(white,true);
+            border_color(black,true);
+            text_color(black,true);
             m_ofnt = nullptr;
             m_fnt = nullptr;
         }
