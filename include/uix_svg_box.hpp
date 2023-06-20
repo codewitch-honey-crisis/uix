@@ -26,7 +26,7 @@ class svg_box : public uix::control<ControlSurfaceType> {
     svg_box& operator=(const svg_box& rhs) = delete;
     // implements move semantics
     void do_move(svg_box& rhs) {
-        do_move_control(rhs);
+        this->do_move_control(rhs);
         m_svg = rhs.m_svg;
         m_rect = rhs.m_rect;
         m_justify = rhs.m_justify;

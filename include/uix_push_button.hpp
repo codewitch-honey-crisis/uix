@@ -28,7 +28,7 @@ namespace uix {
         push_button(const push_button& rhs)=delete;
         push_button& operator=(const push_button& rhs)=delete;
         void do_move(push_button& rhs) {
-            do_move_control(rhs);
+            this->do_move_control(rhs);
             m_pressed = rhs.m_pressed;
             m_on_pressed_changed_callback = rhs.m_on_pressed_changed_callback;
             rhs.m_on_pressed_changed_callback = nullptr;

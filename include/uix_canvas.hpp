@@ -16,7 +16,7 @@ namespace uix {
         canvas(const canvas& rhs)=delete;
         canvas& operator=(const canvas& rhs)=delete;
         void do_move(canvas& rhs) {
-            do_move_control(rhs);
+            this->do_move_control(rhs);
             m_on_paint_cb = rhs.m_on_paint_cb;
             rhs.m_on_paint_cb = nullptr;
             m_on_paint_cb_state = rhs.m_on_paint_cb_state;
@@ -31,7 +31,7 @@ namespace uix {
             return *this;
         }
         
-        canvas(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette),m_on_paint_cb(nullptr) {
+        canvas(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette),m_on_paint_cb(nullptr),m_on_paint_cb_state(nullptr) {
         }
         virtual void on_paint(control_surface_type& destination, const srect16& clip) override {
             if(m_on_paint_cb!=nullptr) {

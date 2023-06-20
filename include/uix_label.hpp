@@ -25,7 +25,7 @@ namespace uix {
         label(const label& rhs)=delete;
         label& operator=(const label& rhs)=delete;
         void do_move(label& rhs) {
-            do_move_control(rhs);
+            this->do_move_control(rhs);
             m_round_ratio = rhs.m_round_ratio;
             m_padding = rhs.m_padding;
             m_text = rhs.m_text;
