@@ -126,13 +126,18 @@ namespace uix {
         srect16 m_bounds;
         const palette_type* m_palette;
         bool m_visible;
-        invalidation_tracker& m_parent;
-        control(const control& rhs)=delete;
-        control& operator=(const control& rhs)=delete;
-        
+        invalidation_tracker* m_parent;
     protected:
-        control(invalidation_tracker& parent, const palette_type* palette = nullptr) : m_bounds({0,0,49,24}),m_palette(palette),m_visible(true),m_parent(parent) {
+        control() : m_bounds({0,0,49,24}),m_palette(nullptr),m_visible(true),m_parent(nullptr) {
+        }
+        control(invalidation_tracker& parent, const palette_type* palette = nullptr) : m_bounds({0,0,49,24}),m_palette(palette),m_visible(true),m_parent(&parent) {
             
+        }
+        void do_copy_control(const control& rhs) {
+            m_bounds = rhs.m_bounds;
+            m_palette = rhs.m_palette;
+            m_visible = rhs.m_visible;
+            m_parent = rhs.m_parent;
         }
         void do_move_control(control& rhs) {
             m_bounds = rhs.m_bounds;
@@ -146,6 +151,14 @@ namespace uix {
         }
         control& operator=(control&& rhs) {
             do_move_control(rhs);
+            return *this;
+        }
+        control(const control& rhs) {
+            do_copy_control(rhs);
+        }
+        control& operator=(const control& rhs) {
+            do_copy_control(rhs);
+            return *this;
         }
         const palette_type* palette() const {return m_palette;}
         ssize16 dimensions() const {
@@ -156,8 +169,10 @@ namespace uix {
         }
         virtual void bounds(const srect16& value) {
             if(m_visible) {
-                m_parent.invalidate(m_bounds);
-                m_parent.invalidate(value);
+                if(m_parent!=nullptr) {
+                    m_parent->invalidate(m_bounds);
+                    m_parent->invalidate(value);
+                }
             }
             m_bounds = value;
         }
@@ -177,14 +192,26 @@ namespace uix {
                 this->invalidate();
             }
         }
+        invalidation_tracker& parent() {
+            return *m_parent;
+        }
+        void parent(invalidation_tracker& parent) {
+            m_parent=&parent;
+        }
         uix_result invalidate() {
-            return m_parent.invalidate(m_bounds);
+            if(m_parent==nullptr) {
+                return uix_result::invalid_state;
+            }
+            return m_parent->invalidate(m_bounds);
         }
         uix_result invalidate(const srect16& bounds) {
+            if(m_parent==nullptr) {
+                return uix_result::invalid_state;
+            }
             srect16 b = bounds.offset(this->bounds().location());
             if(b.intersects(this->bounds())) {
                 b=b.crop(this->bounds());
-                return m_parent.invalidate(b);
+                return m_parent->invalidate(b);
             }
             return uix_result::success;
         }

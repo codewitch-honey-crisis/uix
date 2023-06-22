@@ -21,23 +21,31 @@ class svg_box : public uix::control<ControlSurfaceType> {
     const gfx::svg_doc* m_svg;
     srect16 m_rect;
     uix_justify m_justify;
-    // no reason for copy semantics
-    svg_box(const svg_box& rhs) = delete;
-    svg_box& operator=(const svg_box& rhs) = delete;
-    // implements move semantics
     void do_move(svg_box& rhs) {
         this->do_move_control(rhs);
         m_svg = rhs.m_svg;
         m_rect = rhs.m_rect;
         m_justify = rhs.m_justify;
     }
-
+    void do_copy(const svg_box& rhs) {
+        this->do_copy_control(rhs);
+        m_svg = rhs.m_svg;
+        m_rect = rhs.m_rect;
+        m_justify = rhs.m_justify;
+    }
    public:
     svg_box(svg_box&& rhs) {
         do_move(rhs);
     }
     svg_box& operator=(svg_box&& rhs) {
         do_move(rhs);
+        return *this;
+    }
+    svg_box(const svg_box& rhs) {
+        do_copy(rhs);
+    }
+    svg_box& operator=(const svg_box& rhs) {
+        do_copy(rhs);
         return *this;
     }
     const gfx::svg_doc* doc() const {

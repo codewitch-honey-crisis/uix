@@ -303,6 +303,26 @@ namespace uix {
                     m_last_touched(nullptr)
                 {
         }
+        screen_ex()
+                : m_buffer_size(0), 
+                    m_write_buffer(nullptr),
+                    m_buffer1(nullptr),
+                    m_buffer2(nullptr),
+                    m_palette(nullptr),
+                    m_flushing(0),
+                    m_wait_flush_callback(nullptr),
+                    m_wait_flush_callback_state(nullptr),
+                    m_on_flush_callback(nullptr),
+                    m_on_flush_callback_state(nullptr),
+                    m_background_color(pixel_type()),
+                    m_it_dirties(nullptr),
+                    m_bmp_lines(0),
+                    m_bmp_y(0),
+                    m_on_touch_callback(nullptr),
+                    m_on_touch_callback_state(nullptr),
+                    m_last_touched(nullptr)
+                {
+        }
         screen_ex(screen_ex&& rhs) {
             do_move(rhs);
         }
@@ -316,12 +336,38 @@ namespace uix {
         srect16 bounds() const {
             return dimensions().bounds();
         }
+        bool flushing() const {
+            return m_flushing!=0;
+        }
+        size_t buffer_suze() {
+            return m_buffer_size;
+        }
+        void buffer_size(size_t value) {
+            m_buffer_size = value;
+        }
+        uint8_t* buffer1() {
+            return m_buffer1;
+        }
+        void buffer1(uint8_t* buffer) {
+            m_buffer1=buffer;
+            m_write_buffer = buffer;
+        }
+        uint8_t* buffer2() {
+            return m_buffer2;
+        }
+        void buffer2(uint8_t* buffer) {
+            m_buffer2 = buffer;
+        }
+        
         pixel_type background_color() const {
             return m_background_color;
         }
         void background_color(pixel_type value) {
             m_background_color = value;
             invalidate(bounds());
+        }
+        uix_result invalidate() {
+            return this->invalidate(this->bounds());
         }
         virtual uix_result invalidate(const srect16& rect) override {
             if(bounds().intersects(rect)) {
@@ -361,6 +407,9 @@ namespace uix {
         }
         void set_flush_complete() {
             m_flushing = false;
+        }
+        void palette(const palette_type* value) {
+            m_palette = value;
         }
         const palette_type* palette() const {
             return m_palette;

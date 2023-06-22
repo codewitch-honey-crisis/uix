@@ -25,13 +25,30 @@ namespace uix {
         uix_justify m_text_justify;
         gfx::rgba_pixel<32> m_background_color, m_border_color,m_text_color;
         gfx::rgba_pixel<32> m_pressed_background_color, m_pressed_border_color,m_pressed_text_color;
-        push_button(const push_button& rhs)=delete;
-        push_button& operator=(const push_button& rhs)=delete;
         void do_move(push_button& rhs) {
             this->do_move_control(rhs);
             m_pressed = rhs.m_pressed;
             m_on_pressed_changed_callback = rhs.m_on_pressed_changed_callback;
             rhs.m_on_pressed_changed_callback = nullptr;
+            m_on_pressed_changed_callback_state = rhs.m_on_pressed_changed_callback_state;
+            m_round_ratio = rhs.m_round_ratio;
+            m_padding = rhs.m_padding;
+            m_text = rhs.m_text;
+            m_ofnt = rhs.m_ofnt;
+            m_fnt = rhs.m_fnt;
+            m_text_line_height = rhs.m_text_line_height;
+            m_text_justify = rhs.m_text_justify;
+            m_background_color = rhs.m_background_color;
+            m_border_color = rhs.m_border_color;
+            m_text_color = rhs.m_text_color;
+            m_pressed_background_color = rhs.m_pressed_background_color;
+            m_pressed_border_color = rhs.m_pressed_border_color;
+            m_pressed_text_color = rhs.m_pressed_text_color;
+        }
+        void do_copy(const push_button& rhs) {
+            this->do_copy_control(rhs);
+            m_pressed = rhs.m_pressed;
+            m_on_pressed_changed_callback = rhs.m_on_pressed_changed_callback;
             m_on_pressed_changed_callback_state = rhs.m_on_pressed_changed_callback_state;
             m_round_ratio = rhs.m_round_ratio;
             m_padding = rhs.m_padding;
@@ -55,7 +72,13 @@ namespace uix {
             do_move(rhs);
             return *this;
         }
-        
+        push_button(const push_button& rhs) {
+            do_copy(rhs);
+        }
+        push_button& operator=(const push_button& rhs) {
+            do_copy(rhs);
+            return *this;
+        }
         push_button(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette), m_pressed(false),m_on_pressed_changed_callback(nullptr),m_on_pressed_changed_callback_state(nullptr), m_round_ratio(NAN),m_padding(4,4), m_text_line_height(25),m_text_justify(uix_justify::center) {
             const auto white = gfx::rgba_pixel<32>(0xFF,0xFF,0xFF,0xFF);
             const auto black = gfx::rgba_pixel<32>(0x00,0x00,0x00,0xFF);

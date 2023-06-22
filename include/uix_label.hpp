@@ -22,10 +22,23 @@ namespace uix {
         gfx::rgba_pixel<32> m_background_color, m_border_color,m_text_color;
         srect16 m_text_rect;
         float m_text_scale;
-        label(const label& rhs)=delete;
-        label& operator=(const label& rhs)=delete;
         void do_move(label& rhs) {
             this->do_move_control(rhs);
+            m_round_ratio = rhs.m_round_ratio;
+            m_padding = rhs.m_padding;
+            m_text = rhs.m_text;
+            m_ofnt = rhs.m_ofnt;
+            m_fnt = rhs.m_fnt;
+            m_text_line_height = rhs.m_text_line_height;
+            m_text_justify = rhs.m_text_justify;
+            m_background_color = rhs.m_background_color;
+            m_border_color = rhs.m_border_color;
+            m_text_color = rhs.m_text_color;
+            m_text_rect = rhs.m_text_rect;
+            m_text_scale = rhs.m_text_scale;
+        }
+        void do_copy(const label& rhs) {
+            this->do_copy_control(rhs);
             m_round_ratio = rhs.m_round_ratio;
             m_padding = rhs.m_padding;
             m_text = rhs.m_text;
@@ -45,6 +58,13 @@ namespace uix {
         }
         label& operator=(label&& rhs) {
             do_move(rhs);
+            return *this;
+        }
+        label(const label& rhs) {
+            do_copy(rhs);
+        }
+        label& operator=(const label& rhs) {
+            do_copy(rhs);
             return *this;
         }
         
