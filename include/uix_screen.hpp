@@ -168,8 +168,11 @@ namespace uix {
             // rendering process
             // note we skip this until we have a free buffer
             if(m_on_flush_callback!=nullptr && 
+                    m_buffer_size!=0 &&
+                    m_buffer1!=nullptr&&
                     m_flushing<(1+(m_buffer2!=nullptr)) && 
                     m_dirty_rects.size()!=0) {
+                //Serial.println("!");
                 if(m_it_dirties==nullptr) {
                     // m_it_dirties is null when not rendering
                     // so basically when it's null this is the first call
@@ -230,6 +233,7 @@ namespace uix {
                 subrect=subrect.crop((srect16)aligned);
                 // create a bitmap for the subrect over the write buffer
                 uint8_t* buf = (uint8_t*)m_write_buffer;
+                //assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
                 bitmap_type bmp((size16)subrect.dimensions(),buf,m_palette);
                 // fill it with the screen color
                 bmp.fill(bmp.bounds(),m_background_color);
@@ -259,6 +263,7 @@ namespace uix {
                 // second buffer and continue drawing while
                 // the transfer is in progress.
                 switch_buffers();
+                //Serial.println("#");
             }
             return uix_result::success;
         }
@@ -339,7 +344,7 @@ namespace uix {
         bool flushing() const {
             return m_flushing!=0;
         }
-        size_t buffer_suze() {
+        size_t buffer_size() const {
             return m_buffer_size;
         }
         void buffer_size(size_t value) {
@@ -350,13 +355,18 @@ namespace uix {
         }
         void buffer1(uint8_t* buffer) {
             m_buffer1=buffer;
-            m_write_buffer = buffer;
+            if(m_write_buffer==nullptr || m_write_buffer!=m_buffer2) {
+                m_write_buffer = buffer;
+            }
         }
         uint8_t* buffer2() {
             return m_buffer2;
         }
         void buffer2(uint8_t* buffer) {
             m_buffer2 = buffer;
+            if(m_write_buffer==nullptr || m_write_buffer!=m_buffer1) {
+                m_write_buffer = buffer;
+            }
         }
         
         pixel_type background_color() const {
@@ -393,6 +403,7 @@ namespace uix {
         }
         uix_result deregister_controls() {
             bool should_invalidate = m_controls.size()==0;
+            validate_all();
             m_controls.clear();
             if(should_invalidate) {
                 return invalidate(bounds());
