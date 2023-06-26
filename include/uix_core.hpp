@@ -64,14 +64,24 @@ namespace uix {
             m_bitmap = rhs.m_bitmap;
             m_rect = rhs.m_rect;
         }
-        control_surface(const control_surface& rhs)=delete;
-        control_surface& operator=(const control_surface& rhs)=delete;
+        void do_copy(control_surface& rhs) {
+            m_bitmap = rhs.m_bitmap;
+            m_rect = rhs.m_rect;
+        }
+
     public:
         control_surface(control_surface&& rhs) : m_bitmap(rhs.m_bitmap) {
             do_move(rhs);
         }
         control_surface& operator=(control_surface&& rhs) {
             do_move(rhs);
+            return *this;
+        }
+        control_surface(const control_surface& rhs) {
+            do_copy(rhs);
+        }
+        control_surface& operator=(const control_surface& rhs) {
+            do_copy(rhs);
             return *this;
         }
         control_surface(bitmap_type& bmp,const srect16& rect) : m_bitmap(bmp) {
