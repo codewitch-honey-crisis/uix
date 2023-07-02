@@ -47,6 +47,24 @@ namespace uix {
             m_on_touch_callback = rhs.m_on_touch_callback;
             rhs.m_on_touch_callback = nullptr;
             m_on_touch_callback_state = rhs.m_on_touch_callback_state;
+            mem_area = rhs.mem_area;
+        }
+        size_t compute_mem_area() const {
+            size_t cur = 0;
+            size_t i;
+            for(i = 1;i<uint16_t(-1);++i) {
+                cur = bitmap_type::sizeof_buffer(size16(i,1));
+                if(cur>m_buffer_size) {
+                    break;
+                }
+            }
+            return i-1;
+        }
+        size_t cached_mem_area() {
+            if(mem_area==0) {
+                mem_area = compute_mem_area();
+            }
+            return mem_area;
         }
         template<typename T>
         constexpr static T h_align_up(T value) {
@@ -287,6 +305,7 @@ namespace uix {
         on_touch_callback_type m_on_touch_callback;
         void* m_on_touch_callback_state;
         control_type* m_last_touched;
+        size_t mem_area;
     public:
         screen_ex(size_t buffer_size, uint8_t* buffer, uint8_t* buffer2 = nullptr, const palette_type* palette = nullptr)
                 : m_buffer_size(buffer_size), 
@@ -305,7 +324,8 @@ namespace uix {
                     m_bmp_y(0),
                     m_on_touch_callback(nullptr),
                     m_on_touch_callback_state(nullptr),
-                    m_last_touched(nullptr)
+                    m_last_touched(nullptr),
+                    mem_area(0)
                 {
         }
         screen_ex()
@@ -325,7 +345,8 @@ namespace uix {
                     m_bmp_y(0),
                     m_on_touch_callback(nullptr),
                     m_on_touch_callback_state(nullptr),
-                    m_last_touched(nullptr)
+                    m_last_touched(nullptr),
+                    mem_area(0)
                 {
         }
         screen_ex(screen_ex&& rhs) {
@@ -382,6 +403,7 @@ namespace uix {
         virtual uix_result invalidate(const srect16& rect) override {
             if(bounds().intersects(rect)) {
                 rect16 r = (rect16)rect.crop(bounds());
+                r.normalize_inplace();
                 for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                     if(it->contains(r)) {
                         return uix_result::success;
@@ -390,6 +412,12 @@ namespace uix {
                         it->y1 = r.y1;
                         it->x2 = r.x2;
                         it->y2 = r.y2;
+                        return uix_result::success;
+                    } else if(it->intersects(r)) {
+                        it->x1 = r.x1<it->x1?r.x1:it->x1;
+                        it->y1 = r.y1<it->y1?r.y1:it->y1;
+                        it->x2 = r.x2>it->x2?r.x2:it->x2;
+                        it->y2 = r.y2>it->y2?r.y2:it->y2;
                         return uix_result::success;
                     }
                 }
