@@ -12,14 +12,14 @@
     "platforms": "*",
     "build": {
         "unflags": "-std=gnu++11",
-        "flags": "-std=gnu++14"
+        "flags": "-std=gnu++17"
     },
     "repository": {
         "type": "git",
         "url": "https://github.com/codewitch-honey-crisis/uix.git"
     },
     "dependencies": {
-        "codewitch-honey-crisis/htcw_gfx": "^1.5.4"
+        "codewitch-honey-crisis/htcw_gfx": "^1.5.65"
     },
     "export": {
         "exclude":
