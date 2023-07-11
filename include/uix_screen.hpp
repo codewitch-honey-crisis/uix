@@ -273,7 +273,7 @@ namespace uix {
                     }
                 }
                 // tell it we're flushing and run the callback
-                ++m_flushing;
+                m_flushing=m_flushing+1;
                 m_on_flush_callback((rect16)subrect,bmp.begin(),m_on_flush_callback_state);
                 // the above may return immediately before the 
                 // transfer is complete. To take advantage of
