@@ -1,0 +1,8 @@
+
+menu "htcw_uix configuration"
+  config HTCW_UIX
+    bool "Enable HTCW_UIX"
+    depends on CPP
+    select REQUIRES_FULL_LIBC
+    default n
+endmenu

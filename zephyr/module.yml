@@ -1,0 +1,4 @@
+name: htcw_uix
+build:
+  depends: 
+    - htcw_gfx

@@ -84,31 +84,31 @@ class svg_box : public uix::control<ControlSurfaceType> {
                 m_rect = srect16(0,0,w-1,h-1);
                 switch(m_justify) {
                     case uix_justify::top_middle:
-                        m_rect.center_horizontal_inplace(((base_type*)this)->bounds());
+                        m_rect.center_horizontal_inplace((srect16)destination.bounds());
                         break;
                     case uix_justify::top_right:
-                        m_rect.offset_inplace(this->dimensions().width-w,0);
+                        m_rect.offset_inplace(destination.dimensions().width-w,0);
                         break;
                     case uix_justify::center_left:
-                        m_rect.center_vertical_inplace(((base_type*)this)->bounds());
+                        m_rect.center_vertical_inplace((srect16)destination.bounds());
                         break;
                     case uix_justify::center:
-                        m_rect.center_inplace(((base_type*)this)->bounds());
+                        m_rect.center_inplace((srect16)destination.bounds());
                         break;
                     case uix_justify::center_right:
-                        m_rect.center_vertical_inplace(((base_type*)this)->bounds());
-                        m_rect.offset_inplace(this->dimensions().width-w,0);
+                        m_rect.center_vertical_inplace((srect16)destination.bounds());
+                        m_rect.offset_inplace(destination.dimensions().width-w,0);
                         break;
                     case uix_justify::bottom_left:
-                        m_rect.offset_inplace(0,this->dimensions().height-h);
+                        m_rect.offset_inplace(0,destination.dimensions().height-h);
                         break;
                     case uix_justify::bottom_middle:
-                        m_rect.center_horizontal_inplace(((base_type*)this)->bounds());
-                        m_rect.offset_inplace(0,this->dimensions().height-h);
+                        m_rect.center_horizontal_inplace((srect16)destination.bounds());
+                        m_rect.offset_inplace(0,destination.dimensions().height-h);
                         break;
                     case uix_justify::bottom_right:
-                        m_rect.offset_inplace(this->dimensions().width-w,
-                                            this->dimensions().height-h);
+                        m_rect.offset_inplace(destination.dimensions().width-w,
+                                            destination.dimensions().height-h);
                         break;
                     default: // top_left
                     break;
@@ -117,7 +117,7 @@ class svg_box : public uix::control<ControlSurfaceType> {
             }
             if(clip.intersects(m_rect)) {
                 gfx::draw::svg(destination,
-                            b,
+                            m_rect,
                             *m_svg,
                             scale,&clip);
             }
