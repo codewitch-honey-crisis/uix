@@ -140,7 +140,7 @@ namespace uix {
             if(m_it_dirties==nullptr&& m_on_touch_callback!=nullptr) {
                 point16 locs[5];
                 spoint16 slocs[5];
-                size_t locs_size = sizeof(locs);
+                size_t locs_size = sizeof(locs)/sizeof(point16);
                 m_on_touch_callback(locs,&locs_size,m_on_touch_callback_state);
                 if(locs_size>0) {
                     // if we currently have a touched control
