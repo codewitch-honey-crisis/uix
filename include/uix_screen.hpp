@@ -140,7 +140,7 @@ namespace uix {
             if(m_it_dirties==nullptr&& m_on_touch_callback!=nullptr) {
                 point16 locs[5];
                 spoint16 slocs[5];
-                size_t locs_size = sizeof(locs)/sizeof(point16);
+                size_t locs_size = sizeof(locs);
                 m_on_touch_callback(locs,&locs_size,m_on_touch_callback_state);
                 if(locs_size>0) {
                     // if we currently have a touched control
@@ -171,7 +171,11 @@ namespace uix {
                             while(ptarget!=nullptr && !(*ptarget)->on_touch(locs_size,slocs)) {
                                 ptarget = find_touch_target(tpt,ptarget);
                             }
-                            m_last_touched = *ptarget;
+                            if(ptarget!=nullptr) {
+                                m_last_touched = *ptarget;
+                            } else {
+                                m_last_touched = nullptr;
+                            }
                         }
                     }
                 } else {
