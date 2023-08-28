@@ -3,7 +3,11 @@
 #include "uix_core.hpp"
 #include <htcw_data.hpp>
 namespace uix {
-    template<uint16_t Width, uint16_t Height, typename BitmapType, uint8_t HorizontalAlignment = 1, uint8_t VerticalAlignment = 1>
+    /// @brief Represents a screen
+    /// @tparam BitmapType The type of backing bitmap used over the transfer buffer. This is what is drawn to by the controls.
+    /// @tparam HorizontalAlignment The update rectangle alignment on the x-axis
+    /// @tparam VerticalAlignment The update rectangle alignment on the y-axis
+    template<typename BitmapType, uint8_t HorizontalAlignment = 1, uint8_t VerticalAlignment = 1>
     class screen_ex final : public invalidation_tracker {
     public:
         using type = screen_ex;
@@ -13,15 +17,21 @@ namespace uix {
         using palette_type = typename bitmap_type::palette_type;
         using control_surface_type = control_surface<BitmapType>;
         using control_type = control<control_surface_type>;
+        /// @brief The callback for wait style DMA transfers like those used with GFX
         typedef void(*wait_flush_callback_type)(void* state);
+        /// @brief The flush callback for transfering data to the display.
         typedef void(*on_flush_callback_type)(const rect16& bounds,const void* bmp,void* state);
+        /// @brief The touch callback for getting touch screen touch location information
         typedef void(*on_touch_callback_type)(point16* out_locations,size_t* in_out_locations_size,void* state);
+        /// @brief The update rectangle alignment on the x-axis
         constexpr static const uint8_t horizontal_alignment = HorizontalAlignment;
+        /// @brief The update rectangle alignment on the y-axis
         constexpr static const uint8_t vertical_alignment = VerticalAlignment;
     private:
         screen_ex(const screen_ex& rhs)=delete;
         screen_ex& operator=(const screen_ex& rhs)=delete;
         void do_move(screen_ex& rhs) {
+            m_dimensions = rhs.m_dimensions;
             m_buffer_size = rhs.m_buffer_size;
             rhs.m_buffer_size = 0;
             m_write_buffer = rhs.m_write_buffer;
@@ -47,25 +57,8 @@ namespace uix {
             m_on_touch_callback = rhs.m_on_touch_callback;
             rhs.m_on_touch_callback = nullptr;
             m_on_touch_callback_state = rhs.m_on_touch_callback_state;
-            mem_area = rhs.mem_area;
         }
-        size_t compute_mem_area() const {
-            size_t cur = 0;
-            size_t i;
-            for(i = 1;i<uint16_t(-1);++i) {
-                cur = bitmap_type::sizeof_buffer(size16(i,1));
-                if(cur>m_buffer_size) {
-                    break;
-                }
-            }
-            return i-1;
-        }
-        size_t cached_mem_area() {
-            if(mem_area==0) {
-                mem_area = compute_mem_area();
-            }
-            return mem_area;
-        }
+       
         template<typename T>
         constexpr static T h_align_up(T value) {
             if (value % horizontal_alignment != 0)
@@ -173,8 +166,6 @@ namespace uix {
                             }
                             if(ptarget!=nullptr) {
                                 m_last_touched = *ptarget;
-                            } else {
-                                m_last_touched = nullptr;
                             }
                         }
                     }
@@ -291,6 +282,7 @@ namespace uix {
         }
         using dirty_rects_type = data::simple_vector<rect16>;
         using controls_type = data::simple_vector<control_type*>;
+        ssize16 m_dimensions;
         size_t m_buffer_size;
         volatile uint8_t* m_write_buffer;
         uint8_t* m_buffer1, *m_buffer2;
@@ -309,10 +301,16 @@ namespace uix {
         on_touch_callback_type m_on_touch_callback;
         void* m_on_touch_callback_state;
         control_type* m_last_touched;
-        size_t mem_area;
     public:
-        screen_ex(size_t buffer_size, uint8_t* buffer, uint8_t* buffer2 = nullptr, const palette_type* palette = nullptr)
-                : m_buffer_size(buffer_size), 
+        /// @brief Constructs a screen given a buffer size, and one or two buffers, plus an optional palette
+        /// @param dimensions The width and height of the screen as a ssize16
+        /// @param buffer_size The size of each buffer. Larger is better for performance, but takes more RAM
+        /// @param buffer The first buffer. If DMA is not available, this will be the only buffer.
+        /// @param buffer2 The second buffer. If DMA is available this is used to increase performance. Both buffers must be the same size.
+        /// @param palette The associated palette. This is used for things like color e-ink displays
+        screen_ex(ssize16 dimensions,size_t buffer_size, uint8_t* buffer, uint8_t* buffer2 = nullptr, const palette_type* palette = nullptr)
+                :   m_dimensions(dimensions),
+                    m_buffer_size(buffer_size), 
                     m_write_buffer(buffer),
                     m_buffer1(buffer),
                     m_buffer2(buffer2),
@@ -328,12 +326,13 @@ namespace uix {
                     m_bmp_y(0),
                     m_on_touch_callback(nullptr),
                     m_on_touch_callback_state(nullptr),
-                    m_last_touched(nullptr),
-                    mem_area(0)
+                    m_last_touched(nullptr)
                 {
         }
+        /// @brief Constructs an uninitialized screen instance
         screen_ex()
-                : m_buffer_size(0), 
+                : m_dimensions(0,0),
+                    m_buffer_size(0), 
                     m_write_buffer(nullptr),
                     m_buffer1(nullptr),
                     m_buffer2(nullptr),
@@ -349,61 +348,100 @@ namespace uix {
                     m_bmp_y(0),
                     m_on_touch_callback(nullptr),
                     m_on_touch_callback_state(nullptr),
-                    m_last_touched(nullptr),
-                    mem_area(0)
+                    m_last_touched(nullptr)
                 {
         }
+        /// @brief Moves a screen
+        /// @param rhs The screen to move
         screen_ex(screen_ex&& rhs) {
-            do_move(rhs);
+            do_move_control(rhs);
         }
+        /// @brief Moves a screen
+        /// @param rhs The screen to move
+        /// @return this
         screen_ex& operator=(screen_ex&& rhs) {
-            do_move(rhs);
+            do_move_control(rhs);
             return *this;
         }
+        /// @brief Indicates the dimensions of the screen
+        /// @return A ssize16 indicating the width and height.
         ssize16 dimensions() const {
-            return {Width,Height};
+            return m_dimensions;
         }
+        /// @brief Sets the dimensions of the screen
+        /// @param value the new dimensions
+        void dimensions(ssize16 value) {
+            if(value.width<1 || value.height<1) {
+                return;
+            }
+            m_dimensions = value;
+            // TODO: implement a resize event
+        }
+        /// @brief Indicates the bounds of the screen. This is (0,0)-(Width-1,Height-1)
+        /// @return an srect16 containing the bounds
         srect16 bounds() const {
             return dimensions().bounds();
         }
+        /// @brief Indicates whether the screen is currently in the middle of flushing. Unless update(false) is called or checked unsafely from another thread, this will always be false.
+        /// @return True if the screen is currently flushing, otherwise false.
         bool flushing() const {
             return m_flushing!=0;
         }
+        /// @brief Indicates the size of the transfer buffer(s)
+        /// @return a size_t containing the size of the buffer
         size_t buffer_size() const {
             return m_buffer_size;
         }
+        /// @brief Sets the size of the transfer buffer(s)
+        /// @param value the new buffer size
         void buffer_size(size_t value) {
             m_buffer_size = value;
         }
+        /// @brief Gets the first or only buffer
+        /// @return A pointer to the buffer
         uint8_t* buffer1() {
             return m_buffer1;
         }
+        /// @brief Sets the first or only buffer
+        /// @param buffer A pointer to the new buffer
         void buffer1(uint8_t* buffer) {
             m_buffer1=buffer;
             if(m_write_buffer==nullptr || m_write_buffer!=m_buffer2) {
                 m_write_buffer = buffer;
             }
         }
+        /// @brief Gets the second buffer
+        /// @return A pointer to the buffer
         uint8_t* buffer2() {
             return m_buffer2;
         }
+        /// @brief Sets the second buffer
+        /// @param buffer A pointer to the new buffer
         void buffer2(uint8_t* buffer) {
             m_buffer2 = buffer;
             if(m_write_buffer==nullptr || m_write_buffer!=m_buffer1) {
                 m_write_buffer = buffer;
             }
         }
-        
+        /// @brief The background color of the screen, in the screen's native pixel format.
+        /// @return The background color
         pixel_type background_color() const {
             return m_background_color;
         }
+        /// @brief Sets the background color of the screen, in the screen's native pixel format
+        /// @param value The background color
         void background_color(pixel_type value) {
             m_background_color = value;
             invalidate(bounds());
         }
+        /// @brief Invalidates the entire screen
+        /// @return The result of the operation
         uix_result invalidate() {
             return this->invalidate(this->bounds());
         }
+        /// @brief Invalidates a particular rectangular region
+        /// @param rect The rectangular region to invalidate
+        /// @return The result of the operation
         virtual uix_result invalidate(const srect16& rect) override {
             if(bounds().intersects(rect)) {
                 rect16 r = (rect16)rect.crop(bounds());
@@ -429,11 +467,15 @@ namespace uix {
             }
             return uix_result::success;
         }
+        /// @brief Marks all dirty rectangles as valid
+        /// @return The result of the operation
         virtual uix_result validate_all() override {
             m_dirty_rects.clear();
             return uix_result::success;
         }
-        uix_result deregister_controls() {
+        /// @brief Unregisters all of the controls
+        /// @return The result of the operation
+        uix_result unregister_controls() {
             bool should_invalidate = m_controls.size()==0;
             validate_all();
             m_controls.clear();
@@ -442,51 +484,83 @@ namespace uix {
             }
             return uix_result::success;
         }
+        /// @brief Registers a control with the screen
+        /// @param control The control to register
+        /// @return The result of the operation
         uix_result register_control(control_type& control) {
             if(m_controls.push_back(&control)) {
                 return invalidate(control.bounds());
             }
             return uix_result::out_of_memory;
         }
-        void set_flush_complete() {
+        /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
+        void flush_complete() {
             m_flushing = false;
         }
+        /// @brief sets the palette for the screen
+        /// @param value a pointer to the palette instance
         void palette(const palette_type* value) {
             m_palette = value;
         }
+        /// @brief indicates the palette for the screen
+        /// @return A pointer to the palette instance
         const palette_type* palette() const {
             return m_palette;
         }
+        /// @brief Retrieves the on_flush_callback pointer
+        /// @return A pointer to the callback method
         on_flush_callback_type on_flush_callback() const {
             return m_on_flush_callback;
         }
+        /// @brief Retrieves the flush callback state
+        /// @return The user defined flush callback state
         void* on_flush_callback_state() const {
             return m_on_flush_callback_state;
         }
+        /// @brief Sets the flush callback
+        /// @param callback The callback that transfers data to the display
+        /// @param state A user defined state value to pass to the callback
         void on_flush_callback(on_flush_callback_type callback, void* state = nullptr) {
             m_on_flush_callback = callback;
             m_on_flush_callback_state = state;
         }
+        /// @brief Indicates the wait callback for wait style DMA completion
+        /// @return A pointer to the callback method
         wait_flush_callback_type wait_flush_callback() const {
             return m_wait_flush_callback;
         }
+        /// @brief Retrieves the wait callback state
+        /// @return The user defined wait callback state
         void* wait_flush_callback_state() const {
             return m_wait_flush_callback_state;
         }
+        /// @brief Sets the wait callback
+        /// @param callback The callback that tells the MCU to wait for a previous DMA transfer to complete
+        /// @param state A user defined state value to pass to the callback
         void wait_flush_callback(wait_flush_callback_type callback, void* state = nullptr) {
             m_wait_flush_callback = callback;
             m_wait_flush_callback_state = state;
         }
+        /// @brief Retrieves the touch callback
+        /// @return A pointer to the callback method
         on_touch_callback_type on_touch_callback() const {
             return m_on_touch_callback;
         }
+        /// @brief Retrieves the touch callback state
+        /// @return The user defined touch callback state
         void* on_touch_callback_state() const {
             return m_on_touch_callback_state;
         }
+        /// @brief Sets the touch callback
+        /// @param callback The callback that reports locations from a touch screen or pointer
+        /// @param state A user defined state value to pass to the callback
         void on_touch_callback(on_touch_callback_type callback, void* state = nullptr) {
             m_on_touch_callback = callback;
             m_on_touch_callback_state = state;
         }
+        /// @brief Updates the screen, processing touch input and updating and flushing invalid portions of the screen to the display
+        /// @param full True to fully update the display, false to only update one subrect iteration rather than all dirty rectangles
+        /// @return The result of the operation
         uix_result update(bool full = true) {
             uix_result res = update_impl();
             if(res!=uix_result::success) {
@@ -500,11 +574,16 @@ namespace uix {
             }
             return uix_result::success;
         }
-        bool is_dirty() const {
+        /// @brief Indicates if the screen has any dirty regions to update and flush
+        /// @return True if the screen needs updating, otherwise false
+        bool dirty() const {
             return this->m_dirty_rects.size()!=0;
         }
     };
-    template<uint16_t Width, uint16_t Height, typename PixelType, typename PaletteType = gfx::palette<PixelType,PixelType>>
-    using screen = screen_ex<Width,Height, gfx::bitmap<PixelType,PaletteType>>;
+    /// @brief A convenience wrapper for screen_ex<> that is simpler to use
+    /// @tparam PixelType The type of pixel used in the display, like gfx::rgb_pixel<16>
+    /// @tparam PaletteType The palette type, provided with the display drivers that use them (if using htcw drivers)
+    template<typename PixelType, typename PaletteType = gfx::palette<PixelType,PixelType>>
+    using screen = screen_ex<gfx::bitmap<PixelType,PaletteType>>;
 }
 #endif
