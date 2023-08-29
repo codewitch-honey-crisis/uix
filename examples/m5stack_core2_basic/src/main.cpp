@@ -43,7 +43,7 @@ static const open_font& text_font = telegrama;
 
 // for Core2 power management
 m5core2_power power;
-ft6336<280,320> touch(Wire1);
+ft6336<320,280> touch(Wire1);
 
 // declare the format of the screen
 using screen_t = screen<rgb_pixel<16>>;
