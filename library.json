@@ -21,6 +21,18 @@
     "dependencies": {
         "codewitch-honey-crisis/htcw_gfx": "^1.5.65"
     },
+    "examples": [
+        {
+            "name": "TTGO Basic",
+            "base": "examples/ttgo_basic",
+            "files": [
+                "platformio.ini",
+                "include/assets/bee_icon.hpp",
+                "include/assets/telegrama.hpp",
+                "src/main.cpp"
+            ]
+        }
+    ],
     "export": {
         "exclude":
         [
