@@ -51,6 +51,16 @@
                 "include/assets/telegrama.hpp",
                 "src/main.cpp"
             ]
+        },
+        {
+            "name": "M5Stack Core2 Basic",
+            "base": "examples/m5stack_core2_basic",
+            "files": [
+                "platformio.ini",
+                "include/assets/bee_icon.hpp",
+                "include/assets/telegrama.hpp",
+                "src/main.cpp"
+            ]
         }
     ],
     "export": {

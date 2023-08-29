@@ -256,6 +256,8 @@ We're not done yet. Now we need to hook up the callbacks that we made. Usually y
 ```cpp
 void main_screen_initialize() {
     main_screen.on_flush_callback(uix_on_flush);
+    // for wait based DMA
+    // main_screen.on_wait_callback(uix_on_wait);
     main_screen.on_touch_callback(uix_on_touch);
 }
 ```
