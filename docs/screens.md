@@ -154,7 +154,7 @@ static bool lcd_flush_ready(esp_lcd_panel_io_handle_t panel_io,
     return true;
 }
 ```
-You may notice that there are two different ways of doing DMA with UIX. In the first instance, we used a wait callback to allow UIX to wait for a pending buffer to become available. In the second instance we notified UIX using a callback sourced by the platform.
+You may notice that there are two different ways of doing DMA with UIX. In the first instance, we used a wait callback to allow UIX to wait for a pending buffer to become available. In the second instance we notified UIX using a callback sourced by the platform. You should also be aware that we don't call `flush_complete()` when the `on_wait_callback` has been set.
 
 <a name="1.4"></a>
 
