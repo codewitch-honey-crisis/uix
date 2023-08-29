@@ -105,7 +105,7 @@ The buffer to send is always in the screen's `pixel_type`. Earlier we declared `
 Here's an example of implementing the flush callback with a GFX compatible driver and no DMA:
 
 ```cpp
-void uix_flush(const gfx::rect16& bounds, 
+void uix_on_flush(const gfx::rect16& bounds, 
                     const void* bmp, 
                     void* state) {
     if(active_screen!=nullptr) {
@@ -120,7 +120,7 @@ Here we assume `screen_t* active_screen` points to the current screen being disp
 Let's do the same thing with that driver using DMA.
 
 ```cpp
-void uix_flush(const gfx::rect16& bounds, 
+void uix_on_flush(const gfx::rect16& bounds, 
                     const void* bmp, 
                     void* state) {
     if(active_screen!=nullptr) {
@@ -129,7 +129,7 @@ void uix_flush(const gfx::rect16& bounds,
     }
 }
 // only needed for DMA. Called when we need to wait for a new buffer to become available.
-void uix_wait(void* state) {
+void uix_on_wait(void* state) {
     gfx::draw::wait_all_async(lcd);
 }
 ```
