@@ -43,15 +43,51 @@ static const open_font& text_font = telegrama;
 
 // for Core2 power management
 m5core2_power power;
+ft6336<280,320> touch(Wire1);
 
 // declare the format of the screen
 using screen_t = screen<rgb_pixel<16>>;
-// declare the control types to match the screen
-using label_t = label<typename screen_t::control_surface_type>;
-using svg_box_t = svg_box<typename screen_t::control_surface_type>;
 using color_t = color<typename screen_t::pixel_type>;
 // for access to RGB8888 colors which controls use
 using color32_t = color<rgba_pixel<32>>;
+
+extern screen_t main_screen;
+
+template<typename ControlSurfaceType>
+class svg_box_touch : public svg_box<ControlSurfaceType> {
+public:
+    using base_type = svg_box<ControlSurfaceType>;
+    using pixel_type = typename base_type::pixel_type;
+    using palette_type = typename base_type::palette_type;
+    svg_box_touch(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
+        : base_type(parent, palette) {
+    }
+    svg_box_touch(svg_box_touch&& rhs) {
+        do_move_control(rhs);
+    }
+    svg_box_touch& operator=(svg_box_touch&& rhs) {
+        do_move_control(rhs);
+        return *this;
+    }
+    svg_box_touch(const svg_box_touch& rhs) {
+        do_copy_control(rhs);
+    }
+    svg_box_touch& operator=(const svg_box_touch& rhs) {
+        do_copy_control(rhs);
+        return *this;
+    }
+    virtual bool on_touch(size_t locations_size,const spoint16* locations) override {
+        main_screen.background_color(color_t::light_green);
+        return true;
+    }
+    virtual void on_release() override {
+        main_screen.background_color(color_t::white);
+    }
+};
+
+// declare the control types to match the screen
+using button_t = push_button<typename screen_t::control_surface_type>;
+using svg_box_t = svg_box_touch<typename screen_t::control_surface_type>;
 
 // UIX allows you to use two buffers for maximum DMA efficiency
 // you don't have to, but performance is significantly better
@@ -66,7 +102,7 @@ esp_lcd_panel_handle_t lcd_handle;
 screen_t main_screen({LCD_HRES, LCD_VRES}, sizeof(lcd_buffer1), lcd_buffer1, lcd_buffer2);
 
 // the controls
-label_t test_label(main_screen);
+button_t test_button(main_screen);
 svg_box_t test_svg(main_screen);
 
 // tell UIX the DMA transfer is complete
@@ -75,9 +111,29 @@ static bool lcd_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io
     return true;
 }
 // tell the lcd panel api to transfer data via DMA
-static void uix_flush(const rect16& bounds, const void* bmp, void* state) {
+static void uix_on_flush(const rect16& bounds, const void* bmp, void* state) {
     int x1 = bounds.x1, y1 = bounds.y1, x2 = bounds.x2 + 1, y2 = bounds.y2 + 1;
     esp_lcd_panel_draw_bitmap(lcd_handle, x1, y1, x2, y2, (void*)bmp);
+}
+// report touch values to UIX
+void uix_on_touch(point16* out_locations, 
+                    size_t* in_out_locations_size, 
+                    void* state) {
+    delay(1);
+    if (touch.update()) {                                                  
+        if (touch.xy(&out_locations[0].x, &out_locations[0].y)) {          
+            if (*in_out_locations_size > 1) {                              
+                *in_out_locations_size = 1;                                
+                if (touch.xy2(&out_locations[1].x, &out_locations[1].y)) { 
+                    *in_out_locations_size = 2;                            
+                }                                                          
+            } else {                                                       
+                *in_out_locations_size = 1;                                
+            }                                                              
+        } else {                                                           
+            *in_out_locations_size = 0;                                    
+        }                                                                  
+    }
 }
 // initialize the screen using the esp panel API
 void lcd_panel_init() {
@@ -149,27 +205,37 @@ void lcd_panel_init() {
 }
 // initialize the screen and controls
 void screen_init() {
-    test_label.bounds(srect16(spoint16(0, 10), ssize16(200, 60)).center_horizontal(main_screen.bounds()));
-    test_label.text_color(color32_t::blue);
-    test_label.text_open_font(&text_font);
-    test_label.text_line_height(45);
-    test_label.text_justify(uix_justify::center);
-    test_label.round_ratio(NAN);
-    test_label.padding({8, 8});
-    test_label.text("Hello!");
+    const rgba_pixel<32> transparent(0,0,0,0);
+    test_button.bounds(srect16(spoint16(0, 10), ssize16(200, 60)).center_horizontal(main_screen.bounds()));
+    test_button.text_color(color32_t::blue,true);
+    test_button.border_color(transparent,true);
+    test_button.background_color(transparent,true);
+    test_button.text_open_font(&text_font);
+    test_button.text_line_height(45);
+    test_button.text_justify(uix_justify::center);
+    test_button.round_ratio(NAN);
+    test_button.padding({8, 8});
+    test_button.text("Hello!");
     // make the backcolor transparent
     auto bg = color32_t::black;
     bg.channel<channel_name::A>(0);
-    test_label.background_color(bg);
+    test_button.background_color(bg);
     // and the border
-    test_label.border_color(bg);
-
+    test_button.border_color(bg);
+    test_button.on_pressed_changed_callback([](bool pressed, void *state ) {
+        if(pressed) {
+            test_button.text_color(color32_t::red,true);
+        } else {
+            test_button.text_color(color32_t::blue,true);
+        }
+    });
     test_svg.bounds(srect16(spoint16(0, 70), ssize16(60, 60)).center_horizontal(main_screen.bounds()));
     test_svg.doc(&bee_icon);
     main_screen.background_color(color_t::white);
-    main_screen.register_control(test_label);
+    main_screen.register_control(test_button);
     main_screen.register_control(test_svg);
-    main_screen.on_flush_callback(uix_flush);
+    main_screen.on_flush_callback(uix_on_flush);
+    main_screen.on_touch_callback(uix_on_touch);
 }
 // set up the hardware
 void setup() {
@@ -178,6 +244,8 @@ void setup() {
     Serial.write(bee_icon_data, sizeof(bee_icon_data));
     Serial.println();
     power.initialize();
+    touch.initialize();
+    touch.rotation(0);
     // init the display
     lcd_panel_init();
     // init the UI screen
