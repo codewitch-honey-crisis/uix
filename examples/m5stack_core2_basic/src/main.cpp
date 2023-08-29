@@ -216,12 +216,6 @@ void screen_init() {
     test_button.round_ratio(NAN);
     test_button.padding({8, 8});
     test_button.text("Hello!");
-    // make the backcolor transparent
-    auto bg = color32_t::black;
-    bg.channel<channel_name::A>(0);
-    test_button.background_color(bg);
-    // and the border
-    test_button.border_color(bg);
     test_button.on_pressed_changed_callback([](bool pressed, void *state ) {
         if(pressed) {
             test_button.text_color(color32_t::red,true);
