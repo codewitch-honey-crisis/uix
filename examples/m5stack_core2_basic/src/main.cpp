@@ -195,7 +195,7 @@ void lcd_panel_init() {
     esp_lcd_panel_swap_xy(lcd_handle, LCD_SWAP_XY);
     esp_lcd_panel_set_gap(lcd_handle, LCD_GAP_X, LCD_GAP_Y);
     esp_lcd_panel_mirror(lcd_handle, LCD_MIRROR_X, LCD_MIRROR_Y);
-    esp_lcd_panel_invert_color(lcd_handle, true);
+    esp_lcd_panel_invert_color(lcd_handle, LCD_INVERT_COLOR);
     // Turn on the screen
     esp_lcd_panel_disp_off(lcd_handle, false);
     // Turn on backlight (Different LCD screens may need different levels)
