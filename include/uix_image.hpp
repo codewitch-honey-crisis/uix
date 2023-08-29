@@ -106,11 +106,11 @@ namespace uix {
             if(m_stream!=nullptr) {
                 gfx::gfx_result res = gfx::draw::image(destination,destination.bounds(),m_stream);
                 if(res!=gfx::gfx_result::success) {
-                    Serial.printf("Error: %d\n",(int)res);
+                    //Serial.printf("Error: %d\n",(int)res);
                 } else {
                 }
             } else {
-                Serial.println("Stream was null");
+                //Serial.println("Stream was null");
             }
             if(m_on_unload_cb!=nullptr) {
                 m_on_unload_cb(m_on_unload_cb_state);
