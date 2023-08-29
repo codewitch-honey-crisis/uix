@@ -80,7 +80,7 @@ Fortunately UIX provides the ability to adapt strange display characteristics li
 // declare the screen type
 using screen_t = uix::screen_ex</*FRAME_ADAPTER=*/ssd1306_surface_adapter,/*X_ALIGN=*/1,/*Y_ALIGN=*/8>;
 ```
-This is a declaration with a custom user supplied frame adapter - a [GFX draw target](https://honeythecodewitch.com/gfx/wiki/draw_targets.md) and a custom vertical alignment of 8 pixels. The draw target is used to translate standard coordinates into coordinates that translate to the odd memory layout described above. The code for it, and an example of using it is provided with the examples.
+This is a declaration with a custom user supplied frame adapter - a [GFX draw target](https://honeythecodewitch.com/gfx/wiki/draw_targets.md) and a custom vertical alignment of 8 pixels. The draw target is used to translate standard coordinates into coordinates that translate to the odd memory layout described above. The code for it, and an example of using it is provided in the Heltek Wifi Kit V2 Basic example.
 
 The following two declarations are effectively the same:
 ```cpp
