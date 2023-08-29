@@ -19,7 +19,7 @@
         "url": "https://github.com/codewitch-honey-crisis/uix.git"
     },
     "dependencies": {
-        "codewitch-honey-crisis/htcw_gfx": "^1.5.65"
+        "codewitch-honey-crisis/htcw_gfx": "^1.634"
     },
     "examples": [
         {
