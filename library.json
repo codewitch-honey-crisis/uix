@@ -31,6 +31,16 @@
                 "include/assets/telegrama.hpp",
                 "src/main.cpp"
             ]
+        },
+        {
+            "name": "Wio Terminal Basic",
+            "base": "examples/wio_terminal_basic",
+            "files": [
+                "platformio.ini",
+                "include/assets/bee_icon.hpp",
+                "include/assets/telegrama.hpp",
+                "src/main.cpp"
+            ]
         }
     ],
     "export": {
