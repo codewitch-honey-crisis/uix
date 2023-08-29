@@ -41,6 +41,16 @@
                 "include/assets/telegrama.hpp",
                 "src/main.cpp"
             ]
+        },
+        {
+            "name": "Lilygo T5 4.7in Basic",
+            "base": "examples/lilygo_t5_4_7_basic",
+            "files": [
+                "platformio.ini",
+                "include/assets/bee_icon.hpp",
+                "include/assets/telegrama.hpp",
+                "src/main.cpp"
+            ]
         }
     ],
     "export": {
