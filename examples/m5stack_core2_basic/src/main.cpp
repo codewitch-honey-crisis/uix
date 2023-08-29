@@ -178,7 +178,7 @@ void lcd_panel_init() {
     panel_config.bits_per_pixel = 16;
 
     // Initialize the LCD configuration
-    esp_lcd_new_panel_st7789(io_handle, &panel_config, &lcd_handle);
+    esp_lcd_new_panel_ili9342(io_handle, &panel_config, &lcd_handle);
 
     // Turn off backlight to avoid unpredictable display on the LCD screen while initializing
     // the LCD panel driver. (Different LCD screens may need different levels)
