@@ -63,6 +63,16 @@
             ]
         },
         {
+            "name": "M5Stack Core2 Intermediate",
+            "base": "examples/m5stack_core2_intermediate",
+            "files": [
+                "platformio.ini",
+                "include/assets/architects_daughter.hpp",
+                "include/assets/cpu_pngtree.hpp",
+                "src/main.cpp"
+            ]
+        },
+        {
             "name": "Heltek Wifi Kit V2 Basic",
             "base": "examples/heltek_wifi2_basic",
             "files": [

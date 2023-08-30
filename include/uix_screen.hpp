@@ -432,11 +432,12 @@ namespace uix {
         /// @param value The background color
         void background_color(pixel_type value) {
             m_background_color = value;
-            invalidate(bounds());
+            invalidate();
         }
         /// @brief Invalidates the entire screen
         /// @return The result of the operation
         uix_result invalidate() {
+            validate_all();
             return this->invalidate(this->bounds());
         }
         /// @brief Invalidates a particular rectangular region
