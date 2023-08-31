@@ -1,7 +1,7 @@
 ##### honey the codewitch
 # [UIX](https://honeythecodewitch.com/uix)
 
-UIX is a cross-platform draw-on-demand library that builds on [GFX](https://honeythecodewitch.com/uix). It provides a "control" based framework for laying out screen elements and responding to input. Controls include things like labels, images, canvases and push buttons. Since it builds on GFX, it brings with it all of the advanced features of GFX, including TrueType/OpenType, JPG, PNG and SVG support.
+UIX is a cross-platform draw-on-demand library that builds on [GFX](https://honeythecodewitch.com/gfx). It provides a "control" based framework for laying out screen elements and responding to input. Controls include things like labels, images, canvases and push buttons. Since it builds on GFX, it brings with it all of the advanced features of GFX, including TrueType/OpenType, JPG, PNG and SVG support.
 
 
 UIX is copyright (C) 2023-2024 by honey the codewitch. UIX is licensed under the MIT license.
