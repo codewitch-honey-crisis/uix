@@ -447,16 +447,15 @@ namespace uix {
             if(bounds().intersects(rect)) {
                 rect16 r = (rect16)rect.crop(bounds());
                 r.normalize_inplace();
-                for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
+                for(dirty_rects_type::iterator it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                     if(it->contains(r)) {
-                        //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
                         return uix_result::success;
                     }
                 }
                 bool done = false;
                 while(!done) {
                     done = true;
-                    for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
+                    for(dirty_rects_type::iterator it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                         if(!it->contains(r) && !r.contains(*it) && r.intersects(*it)) {
                             r=r.merge(*it);
                             done = false;
@@ -464,22 +463,19 @@ namespace uix {
                         }
                     }
                 }
-                for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
+                for(dirty_rects_type::iterator it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                     if(r.contains(*it)) {
                         m_dirty_rects.erase(it,it);
                         --it;
                     }
                 }
-                //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
                 return m_dirty_rects.push_back(r)?uix_result::success:uix_result::out_of_memory;
             }
-            //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
             return uix_result::success;
         }
         /// @brief Marks all dirty rectangles as valid
         /// @return The result of the operation
         virtual uix_result validate_all() override {
-            //Serial.println("validate all");
             m_dirty_rects.clear();
             return uix_result::success;
         }
