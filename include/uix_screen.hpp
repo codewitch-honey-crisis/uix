@@ -458,7 +458,7 @@ namespace uix {
                     done = true;
                     for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                         if(!it->contains(r) && !r.contains(*it) && r.intersects(*it)) {
-                            r.merge(*it);
+                            r=r.merge(*it);
                             done = false;
                             break;
                         }
