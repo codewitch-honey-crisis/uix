@@ -449,7 +449,7 @@ namespace uix {
                 r.normalize_inplace();
                 for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                     if(it->contains(r)) {
-                        Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
+                        //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
                         return uix_result::success;
                     }
                 }
@@ -470,16 +470,16 @@ namespace uix {
                         --it;
                     }
                 }
-                Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
+                //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
                 return m_dirty_rects.push_back(r)?uix_result::success:uix_result::out_of_memory;
             }
-            Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
+            //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
             return uix_result::success;
         }
         /// @brief Marks all dirty rectangles as valid
         /// @return The result of the operation
         virtual uix_result validate_all() override {
-            Serial.println("validate all");
+            //Serial.println("validate all");
             m_dirty_rects.clear();
             return uix_result::success;
         }
