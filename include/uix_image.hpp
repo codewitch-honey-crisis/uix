@@ -108,46 +108,23 @@ namespace uix {
         /// @brief Called once before the control is first rendered during update()
         virtual void on_before_render() override {
             if(m_on_load_cb!=nullptr) {
-                m_on_load_cb(m_on_unload_cb_state);
+                m_on_load_cb(m_on_load_cb_state);
             }
             
             if(m_stream!=nullptr && m_allocator!=nullptr && m_deallocator!=nullptr) {
                 using bmp_t = gfx::bitmap<typename control_surface_type::pixel_type,typename control_surface_type::palette_type>;
-                size16 sz;
-                bool got = false;
-                if(m_reset_stream) {
-                    m_stream->seek(0);         
-                }
-                if(gfx::png_image::dimensions(m_stream,&sz)!=gfx::gfx_result::success) {
+                m_render_cache = (uint8_t*)m_allocator(bmp_t::sizeof_buffer((size16)this->dimensions()));
+                if(m_render_cache!=nullptr) {
+                    bmp_t bmp((size16)this->dimensions(),m_render_cache,this->palette());
                     if(m_reset_stream) {
-                       m_stream->seek(0);         
+                        m_stream->seek(0);         
                     }
-                    if(gfx::jpeg_image::dimensions(m_stream,&sz)==gfx::gfx_result::success) {
-                        got = true;
-                    }
-                } else {
-                    got = true;
-                }
-                if(m_on_unload_cb!=nullptr) {
-                    m_on_unload_cb(m_on_unload_cb_state);
-                }
-                if(got) {
-                    m_render_cache = (uint8_t*)m_allocator(bmp_t::sizeof_buffer(size16(sz)));
-                    if(m_render_cache!=nullptr) {
-                        bmp_t bmp(sz,m_render_cache,this->palette());
-                        m_render_size = sz;
-                        if(m_on_load_cb!=nullptr) {
-                            m_on_load_cb(m_on_load_cb_state);
-                        }
-                        if(m_reset_stream) {
-                            m_stream->seek(0);         
-                        }
-                        gfx::draw::image(bmp,bmp.bounds(),m_stream,sz.bounds());
-                        if(m_on_unload_cb!=nullptr) {
-                            m_on_unload_cb(m_on_unload_cb_state);
-                        }
+                    gfx::draw::image(bmp,bmp.bounds(),m_stream,bmp.bounds());
+                    if(m_on_unload_cb!=nullptr) {
+                        m_on_unload_cb(m_on_unload_cb_state);
                     }
                 }
+            
             }
         }
         /// @brief Called once after the control is last rendered during update()
@@ -162,7 +139,7 @@ namespace uix {
         virtual void on_paint(control_surface_type& destination, const srect16& clip) override {
             if(m_render_cache!=nullptr) {
                 using bmp_t = gfx::bitmap<typename control_surface_type::pixel_type,typename control_surface_type::palette_type>;
-                bmp_t bmp(m_render_size,m_render_cache,this->palette());
+                bmp_t bmp((size16)this->dimensions(),m_render_cache,this->palette());
                 gfx::draw::bitmap(destination,destination.bounds(),bmp,bmp.bounds());
             } else {
                 if(m_reset_stream && m_stream!=nullptr && m_stream->caps().seek) {
