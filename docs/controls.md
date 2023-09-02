@@ -167,7 +167,7 @@ my_image.on_unload_callback([](void*state){
 main_screen.register_control(my_image);
 ```
 
-Images can load slowly due to the transfer window not being able to contain the entire image, plus requiring decompression from the beginning each time it renders a portion of the image. Use images with care. In the future there will be image caching to mitigate some of this at the cost of more memory.
+Images can load slowly due to the transfer window not being able to contain the entire image, plus requiring decompression from the beginning each time it renders a portion of the image. To mitigate this, image caching occurs if there is available memory. You can use a custom allocator in the constructor if your platform has an alternative call for using PSRAM, for example. The memory required is the size of the image as an uncompressed bitmap at the same pixel format as the screen.
 
 <a name="2.4"></a>
 
