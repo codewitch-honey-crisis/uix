@@ -28,6 +28,16 @@ namespace uix {
         /// @brief The update rectangle alignment on the y-axis
         constexpr static const uint8_t vertical_alignment = VerticalAlignment;
     private:
+        struct tracker_entry {
+            control_type* ctrl;
+            // 0 = nothing called yet
+            // 1 = on_before_render called
+            // 2 = on_after_render_called
+            int state;
+        };
+        using dirty_rects_type = data::simple_vector<rect16>;
+        using controls_type = data::simple_vector<tracker_entry>;
+        
         screen_ex(const screen_ex& rhs)=delete;
         screen_ex& operator=(const screen_ex& rhs)=delete;
         void do_move(screen_ex& rhs) {
@@ -112,16 +122,16 @@ namespace uix {
             }
             return false;
         }
-        control_type** find_touch_target(spoint16 pt, control_type** pend = nullptr) {
+        typename controls_type::iterator find_touch_target(spoint16 pt, typename controls_type::iterator pend = nullptr) {
             // loop through the controls in z-order back to front
             // find the last/front-most control whose bounds()
             // intersect the first touch point
             if(pend==nullptr) {
                 pend = m_controls.end();
             }
-            control_type** target = nullptr;
-            for(control_type** ctl_it = m_controls.begin();ctl_it!=pend;++ctl_it) {
-                control_type* pctl = *ctl_it;
+            typename controls_type::iterator target = nullptr;
+            for(typename controls_type::iterator ctl_it = m_controls.begin();ctl_it!=pend;++ctl_it) {
+                control_type* pctl = ctl_it->ctrl;
                 if(pctl->visible() && pctl->bounds().intersects(pt)) {
                     target = ctl_it;
                 }
@@ -145,34 +155,34 @@ namespace uix {
                         // offset the touch points to the control and then 
                         // call on_touch for the control
                         for(size_t i = 0;i<locs_size;++i) {
-                            slocs[i].x = locs[i].x-(int16_t)m_last_touched->bounds().x1;
-                            slocs[i].y = locs[i].y-(int16_t)m_last_touched->bounds().y1;
+                            slocs[i].x = locs[i].x-(int16_t)m_last_touched->ctrl->bounds().x1;
+                            slocs[i].y = locs[i].y-(int16_t)m_last_touched->ctrl->bounds().y1;
                         }
-                        m_last_touched->on_touch(locs_size,slocs);
+                        m_last_touched->ctrl->on_touch(locs_size,slocs);
           
                     } else {
                          // loop through the controls in z-order back to front
                         // find the last/front-most control whose bounds()
                         // intersect the first touch point
                         spoint16 tpt = (spoint16)locs[0];
-                        control_type** ptarget = find_touch_target(tpt);
+                        typename controls_type::iterator ptarget = find_touch_target(tpt);
                         if(ptarget!=nullptr) {
                             for(size_t i = 0;i<locs_size;++i) {
-                                slocs[i].x = locs[i].x-(int16_t)(*ptarget)->bounds().x1;
-                                slocs[i].y = locs[i].y-(int16_t)(*ptarget)->bounds().y1;
+                                slocs[i].x = locs[i].x-(int16_t)(ptarget->ctrl)->bounds().x1;
+                                slocs[i].y = locs[i].y-(int16_t)(ptarget->ctrl)->bounds().y1;
                             }
-                            while(ptarget!=nullptr && !(*ptarget)->on_touch(locs_size,slocs)) {
+                            while(ptarget!=nullptr && !(ptarget->ctrl)->on_touch(locs_size,slocs)) {
                                 ptarget = find_touch_target(tpt,ptarget);
                             }
                             if(ptarget!=nullptr) {
-                                m_last_touched = *ptarget;
+                                m_last_touched = ptarget;
                             }
                         }
                     }
                 } else {
                     // released. if we have an active control let it know.
                     if(m_last_touched!=nullptr) {
-                        m_last_touched->on_release();
+                        m_last_touched->ctrl->on_release();
                         m_last_touched = nullptr;
 
                     }
@@ -211,7 +221,14 @@ namespace uix {
                         ++m_it_dirties;
                         if(m_it_dirties==m_dirty_rects.cend()) {
                             // if we're at the end, shut it down
-                            // and clear all dirty rects
+                            // first tell any necessary controls we're done rendering
+                            for(typename controls_type::iterator it = m_controls.begin();it!=m_controls.end();++it) {
+                                if(it->state==1) {
+                                    it->ctrl->on_after_render();
+                                    it->state = 0;
+                                }
+                            }
+                            // clear all dirty rects
                             m_it_dirties = nullptr;
                             return validate_all();
                         }
@@ -251,8 +268,8 @@ namespace uix {
                 // fill it with the screen color
                 bmp.fill(bmp.bounds(),m_background_color);
                 // for each control
-                for(control_type** ctl_it = m_controls.begin();ctl_it!=m_controls.end();++ctl_it) {
-                    control_type* pctl = *ctl_it;
+                for(typename controls_type::iterator ctl_it = m_controls.begin();ctl_it!=m_controls.end();++ctl_it) {
+                    control_type* pctl = ctl_it->ctrl;
                     // if it's visible and intersects this subrect
                     if(pctl->visible() && pctl->bounds().intersects(subrect)) {
                         // create the offset surface rectangle for drawing
@@ -263,6 +280,11 @@ namespace uix {
                         surface_clip.offset_inplace(-pctl->bounds().x1,-pctl->bounds().y1);
                         // create the control surface
                         control_surface_type surface(bmp,surface_rect);
+                        // if we haven't called on_before_render, do so now
+                        if(ctl_it->state==0) {
+                            pctl->on_before_render();
+                            ctl_it->state=1;
+                        }
                         // and paint
                         pctl->on_paint(surface,surface_clip);
                     }
@@ -280,8 +302,6 @@ namespace uix {
             }
             return uix_result::success;
         }
-        using dirty_rects_type = data::simple_vector<rect16>;
-        using controls_type = data::simple_vector<control_type*>;
         ssize16 m_dimensions;
         size_t m_buffer_size;
         volatile uint8_t* m_write_buffer;
@@ -295,12 +315,12 @@ namespace uix {
         dirty_rects_type m_dirty_rects;
         controls_type m_controls;
         pixel_type m_background_color;
-        const rect16* m_it_dirties;
+        typename dirty_rects_type::const_iterator m_it_dirties;
         uint16_t m_bmp_lines;
         uint16_t m_bmp_y;
         on_touch_callback_type m_on_touch_callback;
         void* m_on_touch_callback_state;
-        control_type* m_last_touched;
+        typename controls_type::iterator m_last_touched;
     public:
         /// @brief Constructs a screen given a buffer size, and one or two buffers, plus an optional palette
         /// @param dimensions The width and height of the screen as a ssize16
@@ -308,8 +328,14 @@ namespace uix {
         /// @param buffer The first buffer. If DMA is not available, this will be the only buffer.
         /// @param buffer2 The second buffer. If DMA is available this is used to increase performance. Both buffers must be the same size.
         /// @param palette The associated palette. This is used for things like color e-ink displays
-        screen_ex(ssize16 dimensions,size_t buffer_size, uint8_t* buffer, uint8_t* buffer2 = nullptr, const palette_type* palette = nullptr)
-                :   m_dimensions(dimensions),
+        /// @param allocator The memory allocator to use for the controls (malloc)
+        /// @param reallocator The memory reallocator to use for the controls (realloc)
+        /// @param deallocator The memory deallocator to use for the controls (free)
+        screen_ex(ssize16 dimensions,size_t buffer_size, uint8_t* buffer, uint8_t* buffer2 = nullptr, const palette_type* palette = nullptr, 
+                        void*(allocator)(size_t) = ::malloc,
+                        void*(reallocator)(void*, size_t) = ::realloc,
+                        void(deallocator)(void*) = ::free) :
+                    m_dimensions(dimensions),
                     m_buffer_size(buffer_size), 
                     m_write_buffer(buffer),
                     m_buffer1(buffer),
@@ -320,6 +346,8 @@ namespace uix {
                     m_wait_flush_callback_state(nullptr),
                     m_on_flush_callback(nullptr),
                     m_on_flush_callback_state(nullptr),
+                    m_dirty_rects(allocator,reallocator,deallocator),
+                    m_controls(allocator,reallocator,deallocator),
                     m_background_color(pixel_type()),
                     m_it_dirties(nullptr),
                     m_bmp_lines(0),
@@ -330,8 +358,13 @@ namespace uix {
                 {
         }
         /// @brief Constructs an uninitialized screen instance
-        screen_ex()
-                : m_dimensions(0,0),
+        /// @param allocator The memory allocator to use for the controls (malloc)
+        /// @param reallocator The memory reallocator to use for the controls (realloc)
+        /// @param deallocator The memory deallocator to use for the controls (free)
+        screen_ex(void*(allocator)(size_t) = ::malloc,
+                        void*(reallocator)(void*, size_t) = ::realloc,
+                        void(deallocator)(void*) = ::free) :
+                    m_dimensions(0,0),
                     m_buffer_size(0), 
                     m_write_buffer(nullptr),
                     m_buffer1(nullptr),
@@ -342,6 +375,8 @@ namespace uix {
                     m_wait_flush_callback_state(nullptr),
                     m_on_flush_callback(nullptr),
                     m_on_flush_callback_state(nullptr),
+                    m_dirty_rects(allocator,reallocator,deallocator),
+                    m_controls(allocator,reallocator,deallocator),
                     m_background_color(pixel_type()),
                     m_it_dirties(nullptr),
                     m_bmp_lines(0),
@@ -447,15 +482,16 @@ namespace uix {
             if(bounds().intersects(rect)) {
                 rect16 r = (rect16)rect.crop(bounds());
                 r.normalize_inplace();
-                for(dirty_rects_type::iterator it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
+                for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                     if(it->contains(r)) {
+                        //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
                         return uix_result::success;
                     }
                 }
                 bool done = false;
                 while(!done) {
                     done = true;
-                    for(dirty_rects_type::iterator it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
+                    for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                         if(!it->contains(r) && !r.contains(*it) && r.intersects(*it)) {
                             r=r.merge(*it);
                             done = false;
@@ -463,19 +499,22 @@ namespace uix {
                         }
                     }
                 }
-                for(dirty_rects_type::iterator it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
+                for(rect16* it = m_dirty_rects.begin();it!=m_dirty_rects.end();++it) {
                     if(r.contains(*it)) {
                         m_dirty_rects.erase(it,it);
                         --it;
                     }
                 }
+                //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
                 return m_dirty_rects.push_back(r)?uix_result::success:uix_result::out_of_memory;
             }
+            //Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
             return uix_result::success;
         }
         /// @brief Marks all dirty rectangles as valid
         /// @return The result of the operation
         virtual uix_result validate_all() override {
+            //Serial.println("validate all");
             m_dirty_rects.clear();
             return uix_result::success;
         }
@@ -486,7 +525,7 @@ namespace uix {
             validate_all();
             m_controls.clear();
             if(should_invalidate) {
-                return invalidate(bounds());
+                return invalidate();
             }
             return uix_result::success;
         }
@@ -494,7 +533,10 @@ namespace uix {
         /// @param control The control to register
         /// @return The result of the operation
         uix_result register_control(control_type& control) {
-            if(m_controls.push_back(&control)) {
+            tracker_entry entry;
+            entry.ctrl = &control;
+            entry.state = 0;
+            if(m_controls.push_back(entry)) {
                 return invalidate(control.bounds());
             }
             return uix_result::out_of_memory;

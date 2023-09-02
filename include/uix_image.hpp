@@ -19,6 +19,10 @@ namespace uix {
         void* m_on_load_cb_state;
         callback_type m_on_unload_cb;
         void* m_on_unload_cb_state;
+        void* (*m_allocator)(size_t);
+        void (*m_deallocator)(void*);
+        uint8_t* m_render_cache;
+        size16 m_render_size;
     protected:
         void do_move_control(image& rhs) {
             ((base_type*)this)->do_move_control(rhs);
@@ -30,6 +34,11 @@ namespace uix {
             m_on_unload_cb = rhs.m_on_unload_cb;
             rhs.m_on_unload_cb = nullptr;
             m_on_unload_cb_state = rhs.m_on_unload_cb_state;
+            m_allocator = rhs.m_allocator;
+            m_deallocator = rhs.m_deallocator;
+            m_render_cache = rhs.m_render_cache;
+            rhs.m_render_cache = nullptr;
+            m_render_size = rhs.m_render_size;
         }
         void do_copy_control(const image& rhs) {
             ((base_type*)this)->do_copy_control(rhs);
@@ -39,6 +48,9 @@ namespace uix {
             m_on_load_cb_state = rhs.m_on_unload_cb_state;
             m_on_unload_cb = rhs.m_on_unload_cb;
             m_on_unload_cb_state = rhs.m_on_unload_cb_state;
+            m_allocator = rhs.m_allocator;
+            m_deallocator = rhs.m_deallocator;
+            m_render_cache = nullptr;
         }
     public:
         /// @brief Moves an image
@@ -68,7 +80,7 @@ namespace uix {
         /// @brief Constructs an image with the given parent and optional palette
         /// @param parent The parent - usually a screen
         /// @param palette The associated palette, usually from the screen
-        image(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette),m_stream(nullptr), m_reset_stream(true), m_on_load_cb(nullptr),m_on_load_cb_state(nullptr) {
+        image(invalidation_tracker& parent, const palette_type* palette = nullptr,void*(allocator)(size_t) = ::malloc,void(deallocator)(void*) = ::free) : base_type(parent,palette),m_stream(nullptr), m_reset_stream(true), m_on_load_cb(nullptr),m_on_load_cb_state(nullptr),m_allocator(allocator),m_deallocator(deallocator) {
         }
         /// @brief Indicates the stream that contains the image
         /// @return A pointer to the stream
@@ -93,28 +105,80 @@ namespace uix {
         void reset_stream(bool value) {
             m_reset_stream = value;
         }
+        /// @brief Called once before the control is first rendered during update()
+        virtual void on_before_render() override {
+            if(m_on_load_cb!=nullptr) {
+                m_on_load_cb(m_on_unload_cb_state);
+            }
+            
+            if(m_stream!=nullptr && m_allocator!=nullptr && m_deallocator!=nullptr) {
+                using bmp_t = gfx::bitmap<typename control_surface_type::pixel_type,typename control_surface_type::palette_type>;
+                size16 sz;
+                bool got = false;
+                if(m_reset_stream) {
+                    m_stream->seek(0);         
+                }
+                if(gfx::png_image::dimensions(m_stream,&sz)!=gfx::gfx_result::success) {
+                    if(m_reset_stream) {
+                       m_stream->seek(0);         
+                    }
+                    if(gfx::jpeg_image::dimensions(m_stream,&sz)==gfx::gfx_result::success) {
+                        got = true;
+                    }
+                } else {
+                    got = true;
+                }
+                if(m_on_unload_cb!=nullptr) {
+                    m_on_unload_cb(m_on_unload_cb_state);
+                }
+                if(got) {
+                    m_render_cache = (uint8_t*)m_allocator(bmp_t::sizeof_buffer(size16(sz)));
+                    if(m_render_cache!=nullptr) {
+                        bmp_t bmp(sz,m_render_cache,this->palette());
+                        m_render_size = sz;
+                        if(m_on_load_cb!=nullptr) {
+                            m_on_load_cb(m_on_load_cb_state);
+                        }
+                        if(m_reset_stream) {
+                            m_stream->seek(0);         
+                        }
+                        gfx::draw::image(bmp,bmp.bounds(),m_stream,sz.bounds());
+                        if(m_on_unload_cb!=nullptr) {
+                            m_on_unload_cb(m_on_unload_cb_state);
+                        }
+                    }
+                }
+            }
+        }
+        /// @brief Called once after the control is last rendered during update()
+        virtual void on_after_render() override {
+            if(m_render_cache!=nullptr) {
+                m_deallocator(m_render_cache);
+            }
+        }
         /// @brief Called when the image is painted
         /// @param destination The destination to paint to
         /// @param clip The clipping rectangle
         virtual void on_paint(control_surface_type& destination, const srect16& clip) override {
-            if(m_reset_stream && m_stream!=nullptr && m_stream->caps().seek) {
-                m_stream->seek(0);
-            }
-            if(m_on_load_cb!=nullptr) {
-                m_on_load_cb(m_on_load_cb_state);
-            }
-            if(m_stream!=nullptr) {
-                gfx::gfx_result res = gfx::draw::image(destination,destination.bounds(),m_stream);
-                if(res!=gfx::gfx_result::success) {
-                    //Serial.printf("Error: %d\n",(int)res);
-                } else {
-                }
+            if(m_render_cache!=nullptr) {
+                using bmp_t = gfx::bitmap<typename control_surface_type::pixel_type,typename control_surface_type::palette_type>;
+                bmp_t bmp(m_render_size,m_render_cache,this->palette());
+                gfx::draw::bitmap(destination,destination.bounds(),bmp,bmp.bounds());
             } else {
-                //Serial.println("Stream was null");
+                if(m_reset_stream && m_stream!=nullptr && m_stream->caps().seek) {
+                    m_stream->seek(0);
+                }
+                if(m_on_load_cb!=nullptr) {
+                    m_on_load_cb(m_on_load_cb_state);
+                }
+                if(m_stream!=nullptr) {
+                    gfx::gfx_result res = gfx::draw::image(destination,destination.bounds(),m_stream);
+                } 
+                if(m_on_unload_cb!=nullptr) {
+                    m_on_unload_cb(m_on_unload_cb_state);
+                }
             }
-            if(m_on_unload_cb!=nullptr) {
-                m_on_unload_cb(m_on_unload_cb_state);
-            }
+            
         }
         /// @brief Returns the on_load_callback handler
         /// @return A pointer to the on_load callback

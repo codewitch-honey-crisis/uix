@@ -290,10 +290,16 @@ namespace uix {
         /// @return True if touch was handled, or false if it wasn't.
         virtual bool on_touch(size_t locations_size,const spoint16* locations) {
             return false;
-        };
+        }
         /// @brief Override to handle when the touched control has been released
         virtual void on_release() {
-        };
+        }
+        /// @brief Called once before the control is first rendered during update()
+        virtual void on_before_render() {
+        }
+        /// @brief Called once after the control is last rendered during update()
+        virtual void on_after_render() {
+        }
         /// @brief Indicates whether the control is shown
         /// @return True if visible, otherwise false
         bool visible() const {
