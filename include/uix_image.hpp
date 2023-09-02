@@ -22,7 +22,6 @@ namespace uix {
         void* (*m_allocator)(size_t);
         void (*m_deallocator)(void*);
         uint8_t* m_render_cache;
-        size16 m_render_size;
     protected:
         void do_move_control(image& rhs) {
             ((base_type*)this)->do_move_control(rhs);
@@ -38,7 +37,6 @@ namespace uix {
             m_deallocator = rhs.m_deallocator;
             m_render_cache = rhs.m_render_cache;
             rhs.m_render_cache = nullptr;
-            m_render_size = rhs.m_render_size;
         }
         void do_copy_control(const image& rhs) {
             ((base_type*)this)->do_copy_control(rhs);
