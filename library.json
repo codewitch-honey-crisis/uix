@@ -1,6 +1,6 @@
 {
     "name": "htcw_uix",
-    "version": "0.3.8",
+    "version": "0.3.9",
     "description": "A UI library for embedded and IoT devices, for use with htcw_gfx",
     "keywords": ["tft", "UX","UI","GUI","user-experience","user-interface", "graphics", "spi", "parallel", "i2c", "drawing", "jpg", "ttf", "font"],
     "authors": {
@@ -22,6 +22,16 @@
         "codewitch-honey-crisis/htcw_gfx": "^1.639"
     },
     "examples": [
+        {
+            "name": "Benchmark",
+            "base": "examples/benchmark",
+            "files": [
+                "platformio.ini",
+                "sdkconfig.ttgo-t1-esp-idf",
+                "include/assets/architects_daughter.hpp",
+                "src/main.cpp"
+            ]
+        },
         {
             "name": "TTGO Basic",
             "base": "examples/ttgo_basic",
