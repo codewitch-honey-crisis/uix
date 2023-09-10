@@ -91,7 +91,6 @@ namespace uix {
         /// @param palette The palette, if any. This is usually taken from the screen
         label(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette), m_round_ratio(NAN),m_padding(4,4), m_text_line_height(25),m_text_justify(uix_justify::center),m_text_encoding(uix_encoding::utf8), m_text_rect(0,0,0,0),m_text_scale(NAN) {
             constexpr static const auto white = gfx::rgba_pixel<32>(0xFF,0xFF,0xFF,0xFF);
-            constexpr static const auto black = gfx::rgba_pixel<32>(0x00,0x00,0x00,0xFF);
             constexpr static const auto transparent = gfx::rgba_pixel<32>(0,0,0,0);
             background_color(transparent);
             border_color(transparent);
