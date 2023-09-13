@@ -28,7 +28,7 @@ namespace uix {
         float m_text_scale;
     protected:
         void do_move_control(label& rhs) {
-            ((base_type*)this)->do_move_control(rhs);
+            this->base_type::do_move_control(rhs);
             m_round_ratio = rhs.m_round_ratio;
             m_padding = rhs.m_padding;
             m_text = rhs.m_text;
@@ -45,7 +45,7 @@ namespace uix {
             m_text_scale = rhs.m_text_scale;
         }
         void do_copy_control(const label& rhs) {
-            ((base_type*)this)->do_copy_control(rhs);
+            this->base_type::do_copy_control(rhs);
             m_round_ratio = rhs.m_round_ratio;
             m_padding = rhs.m_padding;
             m_text = rhs.m_text;
@@ -65,25 +65,25 @@ namespace uix {
         /// @brief Moves a label
         /// @param rhs The label to move
         label(label&& rhs) {
-            do_move_control(rhs);
+            this->do_move_control(rhs);
         }
         /// @brief Moves a label
         /// @param rhs The label to move
         /// @return this
         label& operator=(label&& rhs) {
-            do_move_control(rhs);
+            this->do_move_control(rhs);
             return *this;
         }
         /// @brief Copies a label
         /// @param rhs The label to copy
         label(const label& rhs) {
-            do_copy_control(rhs);
+            this->do_copy_control(rhs);
         }
         /// @brief Copies a label
         /// @param rhs The label to copy
         /// @return this
         label& operator=(const label& rhs) {
-            do_copy_control(rhs);
+            this->do_copy_control(rhs);
             return *this;
         }
         /// @brief Constructs a new instance of a label with the specified parent and optional palette

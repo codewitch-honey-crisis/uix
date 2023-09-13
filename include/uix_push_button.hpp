@@ -32,7 +32,7 @@ namespace uix {
         gfx::rgba_pixel<32> m_pressed_background_color, m_pressed_border_color,m_pressed_text_color;
     protected:
         void do_move_control(push_button& rhs) {
-            ((base_type*)this)->do_move_control(rhs);
+            this->base_type::do_move_control(rhs);
             m_pressed = rhs.m_pressed;
             m_on_pressed_changed_callback = rhs.m_on_pressed_changed_callback;
             rhs.m_on_pressed_changed_callback = nullptr;
@@ -55,7 +55,7 @@ namespace uix {
             m_pressed_text_color = rhs.m_pressed_text_color;
         }
         void do_copy_control(const push_button& rhs) {
-            ((base_type*)this)->do_copy_control(rhs);
+            this->base_type::do_copy_control(rhs);
             m_pressed = rhs.m_pressed;
             m_on_pressed_changed_callback = rhs.m_on_pressed_changed_callback;
             m_on_pressed_changed_callback_state = rhs.m_on_pressed_changed_callback_state;

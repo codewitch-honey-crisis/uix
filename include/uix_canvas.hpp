@@ -20,7 +20,7 @@ namespace uix {
         /// @brief For derivative classes, moves the control
         /// @param rhs The canvas to move
         void do_move_control(canvas& rhs) {
-            ((base_type*)this)->do_move_control(rhs);
+            this->base_type::do_move_control(rhs);
             m_on_paint_cb = rhs.m_on_paint_cb;
             rhs.m_on_paint_cb = nullptr;
             m_on_paint_cb_state = rhs.m_on_paint_cb_state;
@@ -28,7 +28,7 @@ namespace uix {
         /// @brief For derivative classes, copies the control
         /// @param rhs The canvas to copy
         void do_copy_control(const canvas& rhs) {
-            ((base_type*)this)->do_copy_control(rhs);
+            this->base_type::do_copy_control(rhs);
             m_on_paint_cb = rhs.m_on_paint_cb;
             m_on_paint_cb_state = rhs.m_on_paint_cb_state;
         }

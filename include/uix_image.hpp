@@ -24,7 +24,7 @@ namespace uix {
         uint8_t* m_render_cache;
     protected:
         void do_move_control(image& rhs) {
-            ((base_type*)this)->do_move_control(rhs);
+            this->base_type::do_move_control(rhs);
             m_stream = rhs.m_stream;
             m_reset_stream = rhs.m_reset_stream;
             m_on_load_cb = rhs.m_on_load_cb;
@@ -39,7 +39,7 @@ namespace uix {
             rhs.m_render_cache = nullptr;
         }
         void do_copy_control(const image& rhs) {
-            ((base_type*)this)->do_copy_control(rhs);
+            this->base_type::do_copy_control(rhs);
             m_stream = rhs.m_stream;
             m_reset_stream = rhs.m_reset_stream;
             m_on_load_cb = rhs.m_on_load_cb;

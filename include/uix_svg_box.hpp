@@ -25,13 +25,13 @@ class svg_box : public uix::control<ControlSurfaceType> {
     uix_justify m_justify;
    protected:
     void do_move_control(svg_box& rhs) {
-        ((base_type*)this)->do_move_control(rhs);
+        this->base_type::do_move_control(rhs);
         m_svg = rhs.m_svg;
         m_rect = rhs.m_rect;
         m_justify = rhs.m_justify;
     }
     void do_copy_control(const svg_box& rhs) {
-        ((base_type*)this)->do_copy_control(rhs);
+        this->base_type::do_copy_control(rhs);
         m_svg = rhs.m_svg;
         m_rect = rhs.m_rect;
         m_justify = rhs.m_justify;

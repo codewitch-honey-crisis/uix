@@ -189,12 +189,13 @@ namespace uix {
                     }
                 }
             }
+            int flushing = m_flushing;
             // rendering process
             // note we skip this until we have a free buffer
             if(m_on_flush_callback!=nullptr && 
                     m_buffer_size!=0 &&
                     m_buffer1!=nullptr&&
-                    m_flushing<(1+(m_buffer2!=nullptr)) && 
+                    flushing<(1+(m_buffer2!=nullptr)) && 
                     m_dirty_rects.size()!=0) {
                 //Serial.println("!");
                 if(m_it_dirties==nullptr) {
@@ -291,7 +292,7 @@ namespace uix {
                     }
                 }
                 // tell it we're flushing and run the callback
-                m_flushing=m_flushing+1;
+                m_flushing=flushing+1;
                 m_on_flush_callback((rect16)subrect,bmp.begin(),m_on_flush_callback_state);
                 // the above may return immediately before the 
                 // transfer is complete. To take advantage of
