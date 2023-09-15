@@ -8,6 +8,4 @@
 @git clone https://github.com/codewitch-honey-crisis/htcw_ml
 @rmdir htcw_gfx /S /Q
 @git clone https://github.com/codewitch-honey-crisis/gfx htcw_gfx
-@rmdir htcw_uix /S /Q
-@git clone https://github.com/codewitch-honey-crisis/uix htcw_uix
 
