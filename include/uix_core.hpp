@@ -12,10 +12,16 @@
 namespace uix {
     using point16 = gfx::point16;
     using spoint16 = gfx::spoint16;
+    using pointf = gfx::pointf;
     using rect16 = gfx::rect16;
     using srect16 = gfx::srect16;
+    using rectf = gfx::rectf;
     using size16 = gfx::size16;
     using ssize16 = gfx::ssize16;
+    using sizef = gfx::sizef;
+    using path16 = gfx::path16;
+    using spath16 = gfx::spath16;
+    using pathf = gfx::pathf;
     using uix_encoding = gfx::gfx_encoding;
     /// @brief Indicates an error or success result
     enum struct uix_result {
