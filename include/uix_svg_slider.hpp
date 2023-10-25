@@ -2,6 +2,13 @@
 #define HTCW_UIX_SVG_SLIDER
 #include "uix_core.hpp"
 namespace uix {
+/// @brief The shape of the slider knob
+enum struct svg_slider_shape {
+    /// @brief The knob is an ellipse
+    ellipse = 0,
+    /// @brief The knob is a rectangle
+    rect = 1
+};
 /// @brief An SVG slider control
 /// @tparam ControlSurfaceType The type of control surface - usually the screen
 template <typename ControlSurfaceType>
@@ -18,11 +25,11 @@ class svg_slider : public control<ControlSurfaceType> {
    private:
     gfx::svg_doc m_bar, m_knob;
     bool m_knob_dirty, m_bar_dirty;
-    rgba_pixel<32> m_knob_color, m_knob_border_color;
+    gfx::rgba_pixel<32> m_knob_color, m_knob_border_color;
     uint16_t m_knob_border_width;
     svg_slider_shape m_knob_shape;
     sizef m_knob_radiuses;
-    rgba_pixel<32> m_bar_color, m_bar_border_color;
+    gfx::rgba_pixel<32> m_bar_color, m_bar_border_color;
     uint16_t m_bar_border_width;
     uint16_t m_bar_height;
     sizef m_bar_radiuses;
@@ -386,5 +393,5 @@ class svg_slider : public control<ControlSurfaceType> {
         return true;
     }
 };
-}
-#endif // HTCW_UIX_SVG_SLIDER
+}  // namespace uix
+#endif  // HTCW_UIX_SVG_SLIDER
