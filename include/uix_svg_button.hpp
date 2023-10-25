@@ -52,8 +52,8 @@ class svg_button final : public control<ControlSurfaceType> {
             gfx::svg_doc_builder b(sizef(dim.width, dim.height));
             gfx::svg_shape_info si;
             si.stroke_width = m_border_width;
-            si.stroke.type = svg_paint_type::color;
-            si.fill.type = svg_paint_type::color;
+            si.stroke.type = gfx::svg_paint_type::color;
+            si.fill.type = gfx::svg_paint_type::color;
             if (m_pressed) {
                 si.stroke.color = m_pressed_border_color;
                 si.fill.color = m_pressed_background_color;
@@ -473,7 +473,7 @@ class svg_button final : public control<ControlSurfaceType> {
         }
         b.inflate_inplace(-1, -1);
         srect16 sb = (srect16)destination.bounds();
-        draw::svg(destination, (m_pressed && m_press_move) ? sb.offset(1, 1) : sb, m_doc, 1, &clip);
+        gfx::draw::svg(destination, (m_pressed && m_press_move) ? sb.offset(1, 1) : sb, m_doc, 1, &clip);
         if (b.height() > m_padding.height * 2 && b.width() > m_padding.width * 2) {
             srect16 bb = b.inflate(-m_padding.width, -m_padding.height);
             if (bb.height() >= 1 && m_text != nullptr && *m_text != '\0') {
