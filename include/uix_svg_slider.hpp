@@ -9,6 +9,11 @@ enum struct svg_slider_shape {
     /// @brief The knob is a rectangle
     rect = 1
 };
+/// @brief The orientation of the slider
+enum struct svg_slider_orientation {
+    horizontal = 0,
+    vertical = 1
+};
 /// @brief An SVG slider control
 /// @tparam ControlSurfaceType The type of control surface - usually the screen
 template <typename ControlSurfaceType>
@@ -31,8 +36,9 @@ class svg_slider : public control<ControlSurfaceType> {
     sizef m_knob_radiuses;
     gfx::rgba_pixel<32> m_bar_color, m_bar_border_color;
     uint16_t m_bar_border_width;
-    uint16_t m_bar_height;
+    uint16_t m_bar_width;
     sizef m_bar_radiuses;
+    svg_slider_orientation m_orientation;
     uint16_t m_minimum, m_maximum, m_value;
     on_value_changed_callback_type m_on_value_changed_cb;
     void* m_on_value_changed_state;
@@ -47,8 +53,9 @@ class svg_slider : public control<ControlSurfaceType> {
         m_bar_color = rhs.m_bar_color;
         m_bar_border_color = rhs.m_bar_border_color;
         m_bar_border_width = rhs.m_bar_border_width;
-        m_bar_height = rhs.m_bar_height;
+        m_bar_width = rhs.m_bar_width;
         m_bar_radiuses = rhs.m_bar_radiuses;
+        m_orientation = rhs.m_orientation;
         m_minimum = rhs.m_minimum;
         m_maximum = rhs.m_maximum;
         m_value = rhs.m_value;
@@ -70,7 +77,12 @@ class svg_slider : public control<ControlSurfaceType> {
     }
     void rebuild_knob() {
         if (m_knob_dirty) {
-            float radius = this->bounds().height() * 0.5f;
+            float radius;
+            if(m_orientation==svg_slider_orientation::horizontal) {
+                radius = this->bounds().height() * 0.5f;
+            } else {
+                radius = this->bounds().width() * 0.5f;
+            }
             gfx::svg_doc_builder b(sizef(radius * 2, radius * 2));
             gfx::svg_shape_info si;
             si.fill.type = gfx::svg_paint_type::color;
@@ -82,16 +94,24 @@ class svg_slider : public control<ControlSurfaceType> {
                 if (m_knob_shape == svg_slider_shape::ellipse) {
                     b.add_ellipse({radius, radius}, {radius - 1.0f, radius - 1.0f}, si);
                 } else if (m_knob_shape == svg_slider_shape::rect) {
-                    rectf r(pointf(radius, radius), (radius * 0.5f) - 1);
-                    r.x2 = r.x1 + radius - 1;
+                    rectf r(pointf(radius, radius), (radius * 0.5f) - 1.0f);
+                    if(m_orientation==svg_slider_orientation::horizontal) {
+                        r.x2 = r.x1 + radius - 1.0f;
+                    } else {
+                        r.y2 = r.y1 + radius - 1.0f;
+                    }
                     b.add_rectangle(r, si);
                 }
             } else {
                 if (m_knob_shape == svg_slider_shape::ellipse) {
-                    b.add_ellipse({m_knob_radiuses.width + 1.0f, radius}, m_knob_radiuses, si);
+                    b.add_ellipse({radius, m_knob_radiuses.height + 1.0f}, m_knob_radiuses, si);
                 } else if (m_knob_shape == svg_slider_shape::rect) {
                     rectf r(pointf(radius, radius), radius - 1);
-                    r.x2 = r.x1 + radius - 1;
+                    if (m_orientation == svg_slider_orientation::horizontal) {
+                        r.x2 = r.x1 + radius - 1.0f;
+                    } else {
+                        r.y2 = r.y1 + radius - 1.0f;
+                    }
                     b.add_rounded_rectangle(r, m_knob_radiuses, si);
                 }
             }
@@ -101,10 +121,20 @@ class svg_slider : public control<ControlSurfaceType> {
     }
     void rebuild_bar() {
         if (m_bar_dirty) {
-            float radius = this->dimensions().height * .05f;
-            rectf bounds(radius, 0, this->dimensions().width - 1 - radius, m_bar_height - 1);
-            bounds.y1 = (this->dimensions().height - m_bar_height) * 0.5f;
-            bounds.y2 = bounds.y1 + m_bar_height - 1;
+            float radius;
+            rectf bounds;
+            if(m_orientation==svg_slider_orientation::horizontal) {
+                radius = this->dimensions().height * .05f;
+                bounds = rectf(radius, 0, this->dimensions().width - 1 - radius, m_bar_width - 1);
+                bounds.y1 = (this->dimensions().height - m_bar_width) * 0.5f;
+                bounds.y2 = bounds.y1 + m_bar_width - 1;
+            } else {
+                radius = this->dimensions().width * .05f;
+                bounds = rectf(0, radius, m_bar_width - 1, this->dimensions().height - 1 - radius);
+                bounds.x1 = (this->dimensions().width - m_bar_width) * 0.5f;
+                bounds.x2 = bounds.x1 + m_bar_width - 1;
+            }
+            
             gfx::svg_doc_builder b(bounds.dimensions());
             gfx::svg_shape_info si;
             si.fill.type = gfx::svg_paint_type::color;
@@ -124,7 +154,7 @@ class svg_slider : public control<ControlSurfaceType> {
 
    protected:
     /// @brief For derivative classes, moves the control
-    /// @param rhs The canvas to move
+    /// @param rhs The slider to move
     void do_move_control(svg_slider& rhs) {
         this->base_type::do_move_control(rhs);
         do_copy_fields(rhs);
@@ -133,7 +163,7 @@ class svg_slider : public control<ControlSurfaceType> {
         rhs.m_on_value_changed_cb = nullptr;
     }
     /// @brief For derivative classes, copies the control
-    /// @param rhs The canvas to copy
+    /// @param rhs The slider to copy
     void do_copy_control(const svg_slider& rhs) {
         this->base_type::do_copy_control(rhs);
         do_copy_fields(rhs);
@@ -142,34 +172,34 @@ class svg_slider : public control<ControlSurfaceType> {
     }
 
    public:
-    /// @brief Moves a canvas control
+    /// @brief Moves a slider control
     /// @param rhs The control to move
     svg_slider(svg_slider&& rhs) {
         do_move_control(rhs);
     }
-    /// @brief Moves a canvas control
+    /// @brief Moves a slider control
     /// @param rhs The control to move
     /// @return this
     svg_slider& operator=(svg_slider&& rhs) {
         do_move_control(rhs);
         return *this;
     }
-    /// @brief Copies a canvas control
+    /// @brief Copies a slider control
     /// @param rhs The control to copy
     svg_slider(const svg_slider& rhs) {
         do_copy_control(rhs);
     }
-    /// @brief Copies a canvas control
+    /// @brief Copies a slider control
     /// @param rhs The control to copy
     /// @return this
     svg_slider& operator=(const svg_slider& rhs) {
         do_copy_control(rhs);
         return *this;
     }
-    /// @brief Constructs a canvas from a given parent with an optional palette
+    /// @brief Constructs a slider from a given parent with an optional palette
     /// @param parent The parent the control is bound to - usually the screen
     /// @param palette The palette associated with the control. This is usually the screen's palette.
-    svg_slider(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette), m_knob_dirty(true), m_bar_dirty(true), m_knob_border_width(1), m_knob_shape(svg_slider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_height(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value(0), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr) {
+    svg_slider(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette), m_knob_dirty(true), m_bar_dirty(true), m_knob_border_width(1), m_knob_shape(svg_slider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_width(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value(0), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr) {
         m_knob_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
         m_knob_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
         m_bar_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
@@ -271,15 +301,15 @@ class svg_slider : public control<ControlSurfaceType> {
         m_bar_dirty = true;
         this->invalidate();
     }
-    /// @brief Indicates the height of the bar
+    /// @brief Indicates the width of the bar
     /// @return The height of the bar
-    uint16_t bar_height() const {
-        return m_bar_height;
+    uint16_t bar_width() const {
+        return m_bar_width;
     }
-    /// @brief Sets the height of the bar
+    /// @brief Sets the width of the bar
     /// @param value The bar height in pixels
-    void bar_height(uint16_t value) {
-        m_bar_height = value;
+    void bar_width(uint16_t value) {
+        m_bar_width = value;
         m_bar_dirty = true;
         this->invalidate();
     }
@@ -294,6 +324,21 @@ class svg_slider : public control<ControlSurfaceType> {
         m_bar_radiuses = value;
         m_bar_dirty = true;
         this->invalidate();
+    }
+    /// @brief Indicates the orientation of the slider
+    /// @return The slider orientation - vertical or horizontal
+    svg_slider_orientation orientation() const {
+        return m_orientation;
+    }
+    /// @brief Sets the orientation of the slider
+    /// @param value The slider orientation - vertical or horizontal
+    void orienation(svg_slider_orientation value) {
+        if(m_orientation!=value) {
+            m_orientation = value;
+            m_knob_dirty = true;
+            m_bar_dirty = true;
+            this->invalidate();
+        }
     }
     /// @brief Indicates the minimum value
     /// @return The minimum value
@@ -352,7 +397,7 @@ class svg_slider : public control<ControlSurfaceType> {
         rebuild_bar();
         rebuild_knob();
     }
-    /// @brief Called when the canvas is painted
+    /// @brief Called when the slider is painted
     /// @param destination The draw destination
     /// @param clip The clipping rectangle
     virtual void on_paint(control_surface_type& destination, const srect16& clip) override {
@@ -361,26 +406,48 @@ class svg_slider : public control<ControlSurfaceType> {
         const uint16_t offset_value = m_value - m_minimum;
         const float mult = (float)offset_value / (float)range;
         int16_t adj;
-        if (m_knob_shape == svg_slider_shape::ellipse) {
-            adj = m_knob_radiuses.width == 0 ? -(m_knob.dimensions().width * 0.5f) : -m_knob_radiuses.width;
+        if(m_orientation==svg_slider_orientation::horizontal) {
+            if (m_knob_shape == svg_slider_shape::ellipse) {
+                adj = m_knob_radiuses.width == 0 ? -(m_knob.dimensions().width * 0.5f) : -m_knob_radiuses.width;
+            } else {
+                adj = -(m_knob.dimensions().height / 4 + 1);
+            }
+            const uint16_t scr_range = destination.dimensions().width - 1 + (adj * 2);
+            gfx::draw::svg(destination, destination.bounds().offset(mult * (scr_range), 0), m_knob, 1.0f, &clip);
         } else {
-            adj = -(m_knob.dimensions().height / 4 + 1);
+            if (m_knob_shape == svg_slider_shape::ellipse) {
+                adj = m_knob_radiuses.height == 0 ? -(m_knob.dimensions().height * 0.5f) : -m_knob_radiuses.height;
+            } else {
+                adj = -(m_knob.dimensions().width / 4 + 1);
+            }
+            const uint16_t scr_range = destination.dimensions().height - 1 + (adj * 2);
+            gfx::draw::svg(destination, destination.bounds().offset(0,scr_range-(mult * (scr_range))), m_knob, 1.0f, &clip);
         }
-
-        const uint16_t scr_range = destination.dimensions().width - 1 + (adj * 2);
-        gfx::draw::svg(destination, destination.bounds().offset(mult * (scr_range), 0), m_knob, 1.0f, &clip);
     }
     /// @brief Called when the slider is touched
     /// @param locations_size The count of locations (only the first one is respected)
     /// @param locations The locations
     /// @return True, because it was handled
     virtual bool on_touch(size_t locations_size, const spoint16* locations) override {
-        float x = locations->x;
-        if (x < 0.0f) x = 0.0f;
-        if (x >= this->dimensions().width) {
-            x = this->dimensions().width - 1;
+        float ext;
+        float i;
+        if(m_orientation==svg_slider_orientation::horizontal) {
+            i = locations->x;
+            ext = this->dimensions().width;
+            if (i < 0.0f) i = 0.0f;
+            if (i >= ext) {
+                i = ext - 1;
+            }
+        } else {
+            i = locations->y;
+            ext = this->dimensions().height;
+            if (i < 0.0f) i = 0.0f;
+            if (i >= ext) {
+                i = ext - 1;
+            }
+            i=ext-i-1;
         }
-        const float mult = x / (float)(this->dimensions().width - 1);
+        const float mult = i / (float)(ext - 1);
         const int range = m_maximum - m_minimum;
         int v = mult * range;
         if (v > maximum()) {
