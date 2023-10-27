@@ -421,7 +421,7 @@ class svg_slider : public control<ControlSurfaceType> {
                 adj = -(m_knob.dimensions().width / 4 + 1);
             }
             const uint16_t scr_range = destination.dimensions().height - 1 + (adj * 2);
-            gfx::draw::svg(destination, destination.bounds().offset(0,scr_range-(mult * (scr_range))), m_knob, 1.0f, &clip);
+            gfx::draw::svg(destination, destination.bounds().offset(0,scr_range-(mult * (scr_range))-1), m_knob, 1.0f, &clip);
         }
     }
     /// @brief Called when the slider is touched
