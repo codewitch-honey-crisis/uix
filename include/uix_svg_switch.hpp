@@ -311,23 +311,13 @@ class svg_switch : public control<ControlSurfaceType> {
         float i;
         if (m_orientation == uix_orientation::horizontal) {
             i = locations->x;
-            ext = this->dimensions().width;
-            if (i < 0.0f) i = 0.0f;
-            if (i >= ext) {
-                i = ext - 1;
-            }
-            const float mult = i / (float)(ext - 1);
-            bool v = i >= 0.5f;
+            ext = this->dimensions().width/2;
+            bool v = i>ext;
             value(v);
         } else {
             i = locations->y;
-            ext = this->dimensions().height;
-            if (i < 0.0f) i = 0.0f;
-            if (i >= ext) {
-                i = ext - 1;
-            }
-            const float mult = i / (float)(ext - 1);
-            bool v = i < 0.5f;
+            ext = this->dimensions().height/2;
+            bool v = i <= ext;
             value(v);
         }
       
