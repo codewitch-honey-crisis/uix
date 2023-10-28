@@ -9,11 +9,6 @@ enum struct svg_slider_shape {
     /// @brief The knob is a rectangle
     rect = 1
 };
-/// @brief The orientation of the slider
-enum struct svg_slider_orientation {
-    horizontal = 0,
-    vertical = 1
-};
 /// @brief An SVG slider control
 /// @tparam ControlSurfaceType The type of control surface - usually the screen
 template <typename ControlSurfaceType>
@@ -38,7 +33,7 @@ class svg_slider : public control<ControlSurfaceType> {
     uint16_t m_bar_border_width;
     uint16_t m_bar_width;
     sizef m_bar_radiuses;
-    svg_slider_orientation m_orientation;
+    uix_orientation m_orientation;
     uint16_t m_minimum, m_maximum, m_value;
     on_value_changed_callback_type m_on_value_changed_cb;
     void* m_on_value_changed_state;
@@ -78,7 +73,7 @@ class svg_slider : public control<ControlSurfaceType> {
     void rebuild_knob() {
         if (m_knob_dirty) {
             float radius;
-            if(m_orientation==svg_slider_orientation::horizontal) {
+            if(m_orientation==uix_orientation::horizontal) {
                 radius = this->bounds().height() * 0.5f;
             } else {
                 radius = this->bounds().width() * 0.5f;
@@ -95,7 +90,7 @@ class svg_slider : public control<ControlSurfaceType> {
                     b.add_ellipse({radius, radius}, {radius - 1.0f, radius - 1.0f}, si);
                 } else if (m_knob_shape == svg_slider_shape::rect) {
                     rectf r(pointf(radius, radius), (radius * 0.5f) - 1.0f);
-                    if(m_orientation==svg_slider_orientation::horizontal) {
+                    if(m_orientation==uix_orientation::horizontal) {
                         r.x2 = r.x1 + radius - 1.0f;
                     } else {
                         r.y2 = r.y1 + radius - 1.0f;
@@ -107,7 +102,7 @@ class svg_slider : public control<ControlSurfaceType> {
                     b.add_ellipse({radius, m_knob_radiuses.height + 1.0f}, m_knob_radiuses, si);
                 } else if (m_knob_shape == svg_slider_shape::rect) {
                     rectf r(pointf(radius, radius), radius - 1);
-                    if (m_orientation == svg_slider_orientation::horizontal) {
+                    if (m_orientation == uix_orientation::horizontal) {
                         r.x2 = r.x1 + radius - 1.0f;
                     } else {
                         r.y2 = r.y1 + radius - 1.0f;
@@ -123,7 +118,7 @@ class svg_slider : public control<ControlSurfaceType> {
         if (m_bar_dirty) {
             float radius;
             rectf bounds;
-            if(m_orientation==svg_slider_orientation::horizontal) {
+            if(m_orientation==uix_orientation::horizontal) {
                 radius = this->dimensions().height * .05f;
                 bounds = rectf(radius, 0, this->dimensions().width - 1 - radius, m_bar_width - 1);
                 bounds.y1 = (this->dimensions().height - m_bar_width) * 0.5f;
@@ -327,12 +322,12 @@ class svg_slider : public control<ControlSurfaceType> {
     }
     /// @brief Indicates the orientation of the slider
     /// @return The slider orientation - vertical or horizontal
-    svg_slider_orientation orientation() const {
+    uix_orientation orientation() const {
         return m_orientation;
     }
     /// @brief Sets the orientation of the slider
     /// @param value The slider orientation - vertical or horizontal
-    void orienation(svg_slider_orientation value) {
+    void orienation(uix_orientation value) {
         if(m_orientation!=value) {
             m_orientation = value;
             m_knob_dirty = true;
@@ -406,7 +401,7 @@ class svg_slider : public control<ControlSurfaceType> {
         const uint16_t offset_value = m_value - m_minimum;
         const float mult = (float)offset_value / (float)range;
         int16_t adj;
-        if(m_orientation==svg_slider_orientation::horizontal) {
+        if(m_orientation==uix_orientation::horizontal) {
             if (m_knob_shape == svg_slider_shape::ellipse) {
                 adj = m_knob_radiuses.width == 0 ? -(m_knob.dimensions().width * 0.5f) : -m_knob_radiuses.width;
             } else {
@@ -431,7 +426,7 @@ class svg_slider : public control<ControlSurfaceType> {
     virtual bool on_touch(size_t locations_size, const spoint16* locations) override {
         float ext;
         float i;
-        if(m_orientation==svg_slider_orientation::horizontal) {
+        if(m_orientation==uix_orientation::horizontal) {
             i = locations->x;
             ext = this->dimensions().width;
             if (i < 0.0f) i = 0.0f;

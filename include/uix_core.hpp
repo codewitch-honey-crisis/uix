@@ -69,6 +69,11 @@ namespace uix {
         /// @brief The content is aligned to the lower right
         bottom_right = 8
     };
+    /// @brief The orientation of the control
+    enum struct uix_orientation {
+        horizontal = 0,
+        vertical = 1
+    };
     namespace helpers {
         // implement std::move to limit dependencies on the STL, which may not be there
         template< class T > struct uix_remove_reference      { typedef T type; };
