@@ -2,6 +2,13 @@
 #define HTCW_UIX_SVG_SWITCH
 #include "uix_core.hpp"
 namespace uix {
+/// @brief The shape of the switch knob
+enum struct svg_switch_shape {
+    /// @brief The knob is a circle
+    circle = 0,
+    /// @brief The knob is a square
+    square = 1
+};
 /// @brief An SVG switch control
 /// @tparam ControlSurfaceType The type of control surface - usually the screen
 template <typename ControlSurfaceType>
@@ -20,6 +27,8 @@ class svg_switch : public control<ControlSurfaceType> {
     bool m_knob_dirty, m_backing_dirty;
     gfx::rgba_pixel<32> m_knob_color, m_knob_border_color;
     uint16_t m_knob_border_width;
+    svg_switch_shape m_knob_shape;
+    sizef m_knob_radiuses;
     gfx::rgba_pixel<32> m_background_color, m_border_color;
     uint16_t m_border_width;
     sizef m_radiuses;
@@ -33,6 +42,8 @@ class svg_switch : public control<ControlSurfaceType> {
         m_knob_color = rhs.m_knob_color;
         m_knob_border_color = rhs.m_knob_border_color;
         m_knob_border_width = rhs.m_knob_border_width;
+        m_knob_shape = rhs.m_knob_shape;
+        m_knob_radiuses = rhs.m_knob_radiuses;
         m_background_color = rhs.m_background_color;
         m_border_color = rhs.m_border_color;
         m_border_width = rhs.m_border_width;
@@ -57,8 +68,16 @@ class svg_switch : public control<ControlSurfaceType> {
             si.stroke_width = m_knob_border_width;
             si.stroke.type = gfx::svg_paint_type::color;
             si.stroke.color = m_knob_border_color;
-
-            b.add_ellipse({radius,radius}, {radius*0.7f, radius*0.7f}, si);
+            if(m_knob_shape==svg_switch_shape::circle) {
+                b.add_ellipse({radius,radius}, {radius*0.7f, radius*0.7f}, si);
+            } else {
+                rectf r(pointf(radius,radius),radius*0.7f);
+                if(m_knob_radiuses.width==0.0f && m_knob_radiuses.height==0.0f) {
+                    b.add_rectangle(r,si);
+                } else {
+                    b.add_rounded_rectangle(r,m_knob_radiuses,si);
+                }
+            }
 
             b.to_doc(&m_knob);
             m_knob_dirty = false;
@@ -143,7 +162,7 @@ class svg_switch : public control<ControlSurfaceType> {
     /// @brief Constructs a slider from a given parent with an optional palette
     /// @param parent The parent the control is bound to - usually the screen
     /// @param palette The palette associated with the control. This is usually the screen's palette.
-    svg_switch(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette), m_knob_dirty(true), m_backing_dirty(true), m_knob_border_width(1), m_border_width(1), m_radiuses(2, 2), m_value(false), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr) {
+    svg_switch(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette), m_knob_dirty(true), m_backing_dirty(true), m_knob_border_width(1),m_knob_shape(svg_switch_shape::circle), m_knob_radiuses(2,2), m_border_width(1), m_radiuses(2, 2), m_value(false), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr) {
         m_knob_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
         m_knob_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
         m_background_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
@@ -185,7 +204,30 @@ class svg_switch : public control<ControlSurfaceType> {
         m_knob_dirty = true;
         this->invalidate();
     }
-    
+    /// @brief Indicates the shape of the knob
+    /// @return The shape
+    svg_switch_shape knob_shape() const {
+        return m_knob_shape;
+    }
+    /// @brief Sets the shape of the knob
+    /// @param value The shape
+    void knob_shape(svg_switch_shape value) {
+        m_knob_shape = value;
+        m_knob_dirty = true;
+        this->invalidate();
+    }
+    /// @brief Indicates the radiuses of the knob
+    /// @return The radiuses of the knob
+    sizef knob_radiuses() const {
+        return m_knob_radiuses;
+    }
+    /// @brief Sets the radiuses of the knob
+    /// @param value The knob radiuses
+    void knob_radiuses(sizef value) {
+        m_knob_radiuses = value;
+        m_knob_dirty = true;
+        this->invalidate();
+    }
     /// @brief Indicates the color of the switch background
     /// @return The color
     gfx::rgba_pixel<32> background_color() const {
@@ -232,7 +274,7 @@ class svg_switch : public control<ControlSurfaceType> {
     /// @param value The bar radiuses
     void radiuses(sizef value) {
         m_radiuses = value;
-        m_knob_dirty = true;
+        // m_knob_dirty = true;
         m_backing_dirty = true;
         this->invalidate();
     }
