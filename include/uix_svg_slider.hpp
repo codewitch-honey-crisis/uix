@@ -20,7 +20,7 @@ class svg_slider : public control<ControlSurfaceType> {
     using palette_type = typename ControlSurfaceType::palette_type;
     using control_surface_type = ControlSurfaceType;
     /// @brief The callback type for when value() changes
-    typedef void (*on_value_changed_callback_type)(void* state);
+    typedef void (*callback_type)(void* state);
 
    private:
     gfx::svg_doc m_bar, m_knob;
@@ -35,8 +35,10 @@ class svg_slider : public control<ControlSurfaceType> {
     sizef m_bar_radiuses;
     uix_orientation m_orientation;
     uint16_t m_minimum, m_maximum, m_value;
-    on_value_changed_callback_type m_on_value_changed_cb;
+    callback_type m_on_value_changed_cb;
     void* m_on_value_changed_state;
+    callback_type m_on_released_cb;
+    void* m_on_released_state;
     void do_copy_fields(const svg_slider& rhs) {
         m_bar_dirty = true;
         m_knob_dirty = true;
@@ -56,6 +58,8 @@ class svg_slider : public control<ControlSurfaceType> {
         m_value = rhs.m_value;
         m_on_value_changed_cb = rhs.m_on_value_changed_cb;
         m_on_value_changed_state = rhs.m_on_value_changed_state;
+        m_on_released_cb = rhs.m_on_released_cb;
+        m_on_released_state = rhs.m_on_released_state;
     }
     void validate_values() {
         if (m_maximum < m_minimum) {
@@ -156,6 +160,7 @@ class svg_slider : public control<ControlSurfaceType> {
         m_bar_dirty = true;
         m_knob_dirty = true;
         rhs.m_on_value_changed_cb = nullptr;
+        rhs.m_on_released_cb = nullptr;
     }
     /// @brief For derivative classes, copies the control
     /// @param rhs The slider to copy
@@ -194,7 +199,7 @@ class svg_slider : public control<ControlSurfaceType> {
     /// @brief Constructs a slider from a given parent with an optional palette
     /// @param parent The parent the control is bound to - usually the screen
     /// @param palette The palette associated with the control. This is usually the screen's palette.
-    svg_slider(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette), m_knob_dirty(true), m_bar_dirty(true), m_knob_border_width(1), m_knob_shape(svg_slider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_width(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value(0), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr) {
+    svg_slider(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette), m_knob_dirty(true), m_bar_dirty(true), m_knob_border_width(1), m_knob_shape(svg_slider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_width(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value(0), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr), m_on_released_cb(nullptr), m_on_released_state(nullptr) {
         m_knob_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
         m_knob_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
         m_bar_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
@@ -375,16 +380,29 @@ class svg_slider : public control<ControlSurfaceType> {
     }
     /// @brief Indicates the callback for when the value changes
     /// @return The pointer to the callback
-    on_value_changed_callback_type on_value_changed_callback() const {
+    callback_type on_value_changed_callback() const {
         return m_on_value_changed_cb;
     }
 
     /// @brief Sets the callback for when the value changes
     /// @param callback The callback to invoke when the value changes
     /// @param state Any user defined state to pass along with the callback
-    void on_value_changed_callback(on_value_changed_callback_type callback, void* state = nullptr) {
+    void on_value_changed_callback(callback_type callback, void* state = nullptr) {
         m_on_value_changed_cb = callback;
         m_on_value_changed_state = state;
+    }
+    /// @brief Indicates the callback for when the slider is released
+    /// @return The pointer to the callback
+    callback_type on_released_callback() const {
+        return m_on_released_cb;
+    }
+
+    /// @brief Sets the callback for when the slider is released
+    /// @param callback The callback to invoke when the slider is released
+    /// @param state Any user defined state to pass along with the callback
+    void on_released_callback(callback_type callback, void* state = nullptr) {
+        m_on_released_cb = callback;
+        m_on_released_state = state;
     }
     /// @brief Called before the control is rendered.
     virtual void on_before_render() override {
@@ -453,6 +471,12 @@ class svg_slider : public control<ControlSurfaceType> {
         }
         value(mult * range);
         return true;
+    }
+    /// @brief Called when the slider is released
+    virtual void on_release() override {
+        if(m_on_released_cb!=nullptr) {
+            m_on_released_cb(m_on_released_state);
+        }
     }
 };
 }  // namespace uix
