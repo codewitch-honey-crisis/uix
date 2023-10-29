@@ -423,10 +423,10 @@ class svg_slider : public control<ControlSurfaceType> {
             if (m_knob_shape == svg_slider_shape::ellipse) {
                 adj = m_knob_radiuses.width == 0 ? -(m_knob.dimensions().width * 0.5f) : -m_knob_radiuses.width;
             } else {
-                adj = -(m_knob.dimensions().height / 4 + 1);
+                adj = -(m_knob.dimensions().height / 4);
             }
             const uint16_t scr_range = destination.dimensions().width - 1 + (adj * 2);
-            gfx::draw::svg(destination, destination.bounds().offset(mult * (scr_range), 0), m_knob, 1.0f, &clip);
+            gfx::draw::svg(destination, destination.bounds().offset(mult * (scr_range-1), 0), m_knob, 1.0f, &clip);
         } else {
             if (m_knob_shape == svg_slider_shape::ellipse) {
                 adj = m_knob_radiuses.height == 0 ? -(m_knob.dimensions().height * 0.5f) : -m_knob_radiuses.height;
@@ -434,7 +434,7 @@ class svg_slider : public control<ControlSurfaceType> {
                 adj = -(m_knob.dimensions().width / 4 + 1);
             }
             const uint16_t scr_range = destination.dimensions().height - 1 + (adj * 2);
-            gfx::draw::svg(destination, destination.bounds().offset(0,scr_range-(mult * (scr_range))-1), m_knob, 1.0f, &clip);
+            gfx::draw::svg(destination, destination.bounds().offset(0,scr_range-(mult * (scr_range))), m_knob, 1.0f, &clip);
         }
     }
     /// @brief Called when the slider is touched
