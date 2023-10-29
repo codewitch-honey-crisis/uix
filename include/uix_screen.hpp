@@ -344,7 +344,6 @@ namespace uix {
                 // second buffer and continue drawing while
                 // the transfer is in progress.
                 switch_buffers();
-                //Serial.println("#");
             }
             return uix_result::success;
         }
