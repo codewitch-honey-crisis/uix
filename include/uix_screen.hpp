@@ -234,6 +234,7 @@ namespace uix {
                             if(y>=dimensions().height) {
                                 break;
                             }
+                            switch_buffers();
                         }
                         m_dirty_rects.clear();
                         if(!m_controls.size()) {
