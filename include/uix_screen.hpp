@@ -202,6 +202,48 @@ namespace uix {
                     // m_it_dirties is null when not rendering
                     // so basically when it's null this is the first call
                     // and we initialize some stuff
+                    if(m_dirty_rects.size()==1 && m_dirty_rects.begin()[0]==(rect16)this->bounds()) {
+                        // rewrite the entire screen before we draw controls
+                        size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(dimensions().width, 1));
+                        size_t bmp_min = native_bitmap_type::sizeof_buffer(size16(dimensions().width, v_align_up(1)));
+                        uint16_t bmp_lines = v_align_down(m_buffer_size / bmp_stride);
+                        if (bmp_lines > dimensions().height) {
+                            bmp_lines = dimensions().height;
+                        }
+                        if (bmp_min > m_buffer_size) {
+                            return uix_result::out_of_memory;
+                        }
+                        uint8_t* buf = (uint8_t*)m_write_buffer;
+                        // assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
+                        uint16_t y = 0;
+                        int buf_fill_count = 0;
+                        while(true) {
+                            if (bmp_lines + y > dimensions().height) {
+                                bmp_lines - dimensions().height - y;
+                            }
+                            srect16 subrect(0, y, dimensions().width - 1, y + bmp_lines-1);
+                            bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
+                            if(buf_fill_count<(1+m_buffer2!=nullptr)) {
+                                // fill it with the screen color
+                                bmp.fill(bmp.bounds(), m_background_color);
+                                ++buf_fill_count;
+                            }
+                            m_flushing = flushing + 1;
+                            m_on_flush_callback((rect16)subrect, bmp.begin(), m_on_flush_callback_state);
+                            y+=bmp_lines;
+                            if(y>=dimensions().height) {
+                                break;
+                            }
+                        }
+                        m_dirty_rects.clear();
+                        if(!m_controls.size()) {
+                            return uix_result::success;
+                        }
+                        for(auto te : m_controls) {
+                            te.ctrl->invalidate();
+                            te.state = 0;
+                        }
+                    }
                     m_it_dirties = m_dirty_rects.cbegin();
                     const rect16 aligned = align_up(*m_it_dirties);
                     size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(aligned.width(),1));
