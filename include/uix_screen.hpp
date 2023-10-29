@@ -197,11 +197,8 @@ namespace uix {
                     m_buffer1!=nullptr&&
                     flushing<(1+(m_buffer2!=nullptr)) && 
                     m_dirty_rects.size()!=0) {
-                //Serial.println("!");
                 if(m_it_dirties==nullptr) {
-                    // m_it_dirties is null when not rendering
-                    // so basically when it's null this is the first call
-                    // and we initialize some stuff
+                    // first check if it's a full screen refresh
                     if(m_dirty_rects.size()==1 && m_dirty_rects.begin()[0]==(rect16)this->bounds()) {
                         // rewrite the entire screen before we draw controls
                         size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(dimensions().width, 1));
@@ -214,7 +211,6 @@ namespace uix {
                             return uix_result::out_of_memory;
                         }
                         uint8_t* buf = (uint8_t*)m_write_buffer;
-                        // assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
                         uint16_t y = 0;
                         int buf_fill_count = 0;
                         while(true) {
@@ -223,6 +219,8 @@ namespace uix {
                             }
                             srect16 subrect(0, y, dimensions().width - 1, y + bmp_lines-1);
                             bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
+                            // we only need to fill the buffer until we've filled
+                            // the number of buffers that there are (1 or 2)
                             if(buf_fill_count<(1+m_buffer2!=nullptr)) {
                                 // fill it with the screen color
                                 bmp.fill(bmp.bounds(), m_background_color);
@@ -245,6 +243,9 @@ namespace uix {
                             te.state = 0;
                         }
                     }
+                    // m_it_dirties is null when not rendering
+                    // so basically when it's null this is the first call
+                    // and we initialize some stuff
                     m_it_dirties = m_dirty_rects.cbegin();
                     const rect16 aligned = align_up(*m_it_dirties);
                     size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(aligned.width(),1));
