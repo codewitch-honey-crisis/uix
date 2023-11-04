@@ -2,7 +2,6 @@
 #define HTCW_UIX_SCREEN_HPP
 #include "uix_core.hpp"
 #include <htcw_data.hpp>
-#include <atomic>
 namespace uix {
     /// @brief Represents a screen
     /// @tparam BitmapType The type of backing bitmap used over the transfer buffer. This is what is drawn to by the controls.
@@ -352,7 +351,7 @@ namespace uix {
         volatile uint8_t* m_write_buffer;
         uint8_t* m_buffer1, *m_buffer2;
         const palette_type* m_palette;
-        volatile std::atomic_int m_flushing;
+        volatile int m_flushing;
         wait_flush_callback_type m_wait_flush_callback;
         void* m_wait_flush_callback_state;
         on_flush_callback_type m_on_flush_callback;
