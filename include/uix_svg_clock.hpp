@@ -1,7 +1,8 @@
 #ifndef HTCW_UIX_SVG_CLOCK
 #define HTCW_UIX_SVG_CLOCK
-#include "uix_core.hpp"
 #include <time.h>
+
+#include "uix_core.hpp"
 namespace uix {
 /// @brief Represents an analog clock
 /// @tparam ControlSurfaceType The control surface type, usually taken from the screen
@@ -18,7 +19,6 @@ class svg_clock : public uix::control<ControlSurfaceType> {
    private:
     using base_type = uix::control<ControlSurfaceType>;
     using control_surface_type = ControlSurfaceType;
-    using color32_t = gfx::color<gfx::rgba_pixel<32>>;
     gfx::svg_doc m_svg;
     time_t m_time;
     bool m_dirty;
@@ -107,20 +107,24 @@ class svg_clock : public uix::control<ControlSurfaceType> {
     /// @param palette The palette, if applicable
     svg_clock(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
         : base_type(parent, palette), m_time(0), m_dirty(true) {
-        m_face_color = color32_t::white;
-        m_face_border_color = color32_t::white;
+        static const constexpr gfx::rgba_pixel<32> white(0xFF, 0xFF, 0xFF, 0xFF);
+        static const constexpr gfx::rgba_pixel<32> black(0x0, 0x0, 0x0, 0xFF);
+        static const constexpr gfx::rgba_pixel<32> gray(0x7F, 0x7F, 0x7F, 0xFF);
+        static const constexpr gfx::rgba_pixel<32> red(0xFF, 0x0, 0x0, 0xFF);
+        m_face_color = white;
+        m_face_border_color = white;
         m_face_border_width = 1;
-        m_tick_color = color32_t::gray;
-        m_tick_border_color = color32_t::gray;
+        m_tick_color = gray;
+        m_tick_border_color = gray;
         m_tick_border_width = 1;
-        m_hour_color = color32_t::black;
-        m_hour_border_color = color32_t::black;
+        m_hour_color = black;
+        m_hour_border_color = black;
         m_hour_border_width = 1;
-        m_minute_color = color32_t::black;
-        m_minute_border_color = color32_t::black;
+        m_minute_color = black;
+        m_minute_border_color = black;
         m_minute_border_width = 1;
-        m_second_color = color32_t::red;
-        m_second_border_color = color32_t::red;
+        m_second_color = red;
+        m_second_border_color = red;
         m_second_border_width = 1;
     }
     /// @brief Indicates the time
@@ -422,5 +426,5 @@ class svg_clock : public uix::control<ControlSurfaceType> {
         }
     }
 };
-}
-#endif // HTCW_UIX_SVG_CLOCK
+}  // namespace uix
+#endif  // HTCW_UIX_SVG_CLOCK
