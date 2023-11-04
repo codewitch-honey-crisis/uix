@@ -8,6 +8,7 @@
 #include "uix_svg_button.hpp"
 #include "uix_svg_slider.hpp"
 #include "uix_svg_switch.hpp"
+#include "uix_svg_clock.hpp"
 #include "uix_canvas.hpp"
 #include "uix_image.hpp"
 #endif
