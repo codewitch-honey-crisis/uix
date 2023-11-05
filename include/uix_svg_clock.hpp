@@ -357,7 +357,8 @@ class svg_clock : public uix::control<ControlSurfaceType> {
                 m_drag_point = *locations;
             } else {
                 spoint16 pt = *locations;
-                time(m_time_drag+(pt.x-m_drag_point.x)+(pt.y-m_drag_point.y));
+                //time(m_time_drag + (((pt.x - m_drag_point.x)*m_drag_multiplier) + ((pt.y - m_drag_point.y) * m_drag_multiplier)));
+                time(m_time_drag + (((pt.x - m_drag_point.x) ) + ((pt.y - m_drag_point.y))));
             }
             return true;
         }
