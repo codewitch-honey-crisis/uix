@@ -22,6 +22,10 @@ class svg_clock : public uix::control<ControlSurfaceType> {
     gfx::svg_doc m_svg;
     time_t m_time;
     bool m_dirty;
+    bool m_dragging;
+    time_t m_time_drag;
+    spoint16 m_drag_point;
+    bool m_allow_drag;
     gfx::rgba_pixel<32> m_face_color, m_face_border_color;
     uint16_t m_face_border_width;
     gfx::rgba_pixel<32> m_tick_color, m_tick_border_color;
@@ -34,6 +38,10 @@ class svg_clock : public uix::control<ControlSurfaceType> {
     uint16_t m_second_border_width;
     void do_copy_fields(const svg_clock& rhs) {
         m_time = rhs.m_time;
+        m_dragging = rhs.m_dragging;
+        m_time_drag = rhs.m_time_drag;
+        m_drag_point = rhs.m_drag_point;
+        m_allow_drag = rhs.m_allow_drag;
         m_face_color = rhs.m_face_color;
         m_face_border_color = rhs.m_face_border_color;
         m_face_border_width = rhs.m_face_border_width;
@@ -106,7 +114,7 @@ class svg_clock : public uix::control<ControlSurfaceType> {
     /// @param parent The parent (a screen)
     /// @param palette The palette, if applicable
     svg_clock(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
-        : base_type(parent, palette), m_time(0), m_dirty(true) {
+        : base_type(parent, palette), m_time(0), m_dirty(true), m_dragging(false),m_allow_drag(false) {
         static const constexpr gfx::rgba_pixel<32> white(0xFF, 0xFF, 0xFF, 0xFF);
         static const constexpr gfx::rgba_pixel<32> black(0x0, 0x0, 0x0, 0xFF);
         static const constexpr gfx::rgba_pixel<32> gray(0x7F, 0x7F, 0x7F, 0xFF);
@@ -321,8 +329,45 @@ class svg_clock : public uix::control<ControlSurfaceType> {
         m_dirty = true;
         this->invalidate();
     }
-
+    /// @brief Indicates whether the clock can be dragged
+    /// @return True if it can be dragged, otherwise false
+    bool allow_drag() const {
+        return m_allow_drag;
+    }
+    /// @brief Sets the clock can be dragged
+    /// @param value True if it can be dragged, otherwise false
+    void allow_drag(bool value) {
+        m_allow_drag = value;
+    }
+    /// @brief Indicates whether the clock is being dragged
+    /// @return True if it's being dragged, otherwise false
+    bool dragging() const {
+        return m_dragging;
+    }
    protected:
+    /// @brief Override to handle when the control is touched
+    /// @param locations_size The count of touch locations
+    /// @param locations The locations, translated to local control coordinates
+    /// @return True if touch was handled, or false if it wasn't.
+    virtual bool on_touch(size_t locations_size, const spoint16* locations) {
+        if(m_allow_drag) {
+            if(!m_dragging) {
+                m_dragging = true;
+                m_time_drag = m_time;
+                m_drag_point = *locations;
+            } else {
+                spoint16 pt = *locations;
+                time(m_time_drag+(pt.x-m_drag_point.x)+(pt.y-m_drag_point.y));
+            }
+            return true;
+        }
+        return false;
+
+    }
+    /// @brief Override to handle when the touched control has been released
+    virtual void on_release() {
+        m_dragging = false;
+    }
     /// @brief Paints the control
     /// @param destination The surface to draw to
     /// @param clip The clipping rectangle
