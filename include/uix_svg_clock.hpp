@@ -396,7 +396,11 @@ class svg_clock : public uix::control<ControlSurfaceType> {
             gfx::svg_path_builder pb;
             gfx::svg_path* path;
             b.inflate_inplace(-m_face_border_width - 1, -m_face_border_width - 1);
-            float w = min(b.width(), b.height());
+            
+            float w = b.width();
+            float h = b.height();
+            if(w>h) w= h;
+            // min(b.width(), b.height());
             gfx::rectf sr(0, w / 30, w / 30, w / 5);
             sr.center_horizontal_inplace(b);
             center = gfx::pointf(w * 0.5f + m_face_border_width + 1, w * 0.5f + m_face_border_width + 1);
