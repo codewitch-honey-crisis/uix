@@ -214,13 +214,13 @@ namespace uix {
                         int buf_fill_count = 0;
                         while(true) {
                             if (bmp_lines + y > dimensions().height) {
-                                bmp_lines - dimensions().height - y;
+                                bmp_lines = dimensions().height - y;
                             }
                             srect16 subrect(0, y, dimensions().width - 1, y + bmp_lines-1);
                             bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
                             // we only need to fill the buffer until we've filled
                             // the number of buffers that there are (1 or 2)
-                            if(buf_fill_count<(1+m_buffer2!=nullptr)) {
+                            if(buf_fill_count<(1+(m_buffer2!=nullptr))) {
                                 // fill it with the screen color
                                 bmp.fill(bmp.bounds(), m_background_color);
                                 ++buf_fill_count;
