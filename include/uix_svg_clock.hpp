@@ -396,7 +396,7 @@ class svg_clock : public uix::control<ControlSurfaceType> {
             gfx::svg_path_builder pb;
             gfx::svg_path* path;
             b.inflate_inplace(-m_face_border_width - 1, -m_face_border_width - 1);
-            uint
+            
             float w = b.width();
             float h = b.height();
             if(w>h) w= h;
