@@ -13,9 +13,17 @@ namespace uix {
         using control_surface_type = ControlSurfaceType;
         /// @brief The callback type for paint operations
         typedef void(*on_paint_callback_type)(control_surface_type& destination,const srect16& clip,void* state);
+        /// @brief The callback type for the touch operation
+        typedef void(*on_touch_callback_type)(size_t locations_size,const spoint16* locations,void* state);
+        /// @brief The callback type for touch release operation
+        typedef void(*on_release_callback_type)(void* state);
     private:
         on_paint_callback_type m_on_paint_cb;
         void* m_on_paint_cb_state;
+        on_touch_callback_type m_on_touch_cb;
+        void* m_on_touch_cb_state;
+        on_release_callback_type m_on_release_cb;
+        void* m_on_release_cb_state;
     protected:
         /// @brief For derivative classes, moves the control
         /// @param rhs The canvas to move
@@ -24,6 +32,12 @@ namespace uix {
             m_on_paint_cb = rhs.m_on_paint_cb;
             rhs.m_on_paint_cb = nullptr;
             m_on_paint_cb_state = rhs.m_on_paint_cb_state;
+            m_on_touch_cb = rhs.m_on_touch_cb;
+            rhs.m_on_touch_cb = nullptr;
+            m_on_touch_cb_state = rhs.m_on_touch_cb_state;
+            m_on_release_cb = rhs.m_on_release_cb;
+            rhs.m_on_release_cb = nullptr;
+            m_on_release_cb_state = rhs.m_on_release_cb_state;
         }
         /// @brief For derivative classes, copies the control
         /// @param rhs The canvas to copy
@@ -31,6 +45,10 @@ namespace uix {
             this->base_type::do_copy_control(rhs);
             m_on_paint_cb = rhs.m_on_paint_cb;
             m_on_paint_cb_state = rhs.m_on_paint_cb_state;
+            m_on_touch_cb = rhs.m_on_touch_cb;
+            m_on_touch_cb_state = rhs.m_on_touch_cb_state;
+            m_on_release_cb = rhs.m_on_release_cb;
+            m_on_release_cb_state = rhs.m_on_release_cb_state;
         }
         
     public:
@@ -88,7 +106,57 @@ namespace uix {
             m_on_paint_cb_state = state;
             m_on_paint_cb = callback;
         }
-        
+        /// @brief Called when the canvas is touched
+        /// @param locations_size The count of locations
+        /// @param locations The locations
+        /// @return True if handled, otherwise false
+        virtual bool on_touch(size_t locations_size,const spoint16* locations) override {
+            if(m_on_touch_cb!=nullptr) {
+                m_on_touch_cb(locations_size,locations,m_on_touch_cb_state);
+                return true;
+            }
+            return false;
+        }
+        /// @brief Retrieves the touch callback
+        /// @return A pointer to the callback
+        on_touch_callback_type on_touch_callback() const {
+            return m_on_touch_cb;
+        }
+        /// @brief Retrieves the user defined touch callback state
+        /// @return The user defined state
+        void* on_touch_callback_state() const {
+            return m_on_touch_cb_state;
+        }
+        /// @brief Sets the on_touch callback
+        /// @param callback The function to call when the canvas is touched
+        /// @param state A user defined state to pass to the touch callback
+        void on_touch_callback(on_touch_callback_type callback, void* state = nullptr) {
+            m_on_touch_cb_state = state;
+            m_on_touch_cb = callback;
+        }
+         /// @brief Called when the button is released.
+        virtual void on_release() override {
+            if(m_on_release_cb!=nullptr) {
+                m_on_release_cb(m_on_release_cb_state);
+            }
+        }
+        /// @brief Retrieves the release callback
+        /// @return A pointer to the callback
+        on_release_callback_type on_release_callback() const {
+            return m_on_release_cb;
+        }
+        /// @brief Retrieves the user defined release callback state
+        /// @return The user defined state
+        void* on_release_callback_state() const {
+            return m_on_release_cb_state;
+        }
+        /// @brief Sets the on_release callback
+        /// @param callback The function to call when the canvas is released
+        /// @param state A user defined state to pass to the touch callback
+        void on_release_callback(on_release_callback_type callback, void* state = nullptr) {
+            m_on_release_cb_state = state;
+            m_on_release_cb = callback;
+        }       
     };
 }
 #endif
