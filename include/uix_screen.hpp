@@ -198,6 +198,7 @@ namespace uix {
                     m_dirty_rects.size()!=0) {
                 if(m_it_dirties==nullptr) {
                     // first check if it's a full screen refresh
+#ifdef HTCW_UIX_FULL_SCREEN_REFRESH
                     if(m_dirty_rects.size()==1 && m_dirty_rects.begin()[0]==(rect16)this->bounds()) {
                         // rewrite the entire screen before we draw controls
                         size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(dimensions().width, 1));
@@ -242,6 +243,7 @@ namespace uix {
                             te.state = 0;
                         }
                     }
+#endif // HTCW_UIX_FULL_SCREEN_REFRESH
                     // m_it_dirties is null when not rendering
                     // so basically when it's null this is the first call
                     // and we initialize some stuff
