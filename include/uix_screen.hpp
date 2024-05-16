@@ -340,7 +340,15 @@ namespace uix {
                     }
                 }
                 // tell it we're flushing and run the callback
-                m_flushing=flushing+1;
+                //++flushing;
+                switch(m_flushing) {
+                    case 0:
+                        m_flushing = 1;
+                        break;
+                    case 1:
+                        m_flushing = 2;
+                        break;
+                }
                 // the below may return immediately before the 
                 // transfer is complete. To take advantage of
                 // this, rather than wait, we swap out to a
