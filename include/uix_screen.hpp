@@ -103,8 +103,7 @@ namespace uix {
             return rect16(h_align_down(value.x1),v_align_down(value.y1),x2,y2);
         }
         bool switch_buffers() {
-            const int buffer_count = m_buffer2!=nullptr?2:1;
-            if(buffer_count>1) {
+            if(m_buffer2!=nullptr) {
                 if(m_buffer1==m_write_buffer) {
                     m_write_buffer = m_buffer2;
                 } else {
@@ -190,14 +189,12 @@ namespace uix {
                 }
             }
             int flushing = m_flushing;
-            const int buffer_count = (m_buffer2!=nullptr)?2:1;
-            const bool should_flush = flushing < buffer_count;
             // rendering process
             // note we skip this until we have a free buffer
             if(m_on_flush_callback!=nullptr && 
                     m_buffer_size!=0 &&
                     m_buffer1!=nullptr&&
-                    should_flush && 
+                    flushing<(1+(m_buffer2!=nullptr)) && 
                     m_dirty_rects.size()!=0) {
                 if(m_it_dirties==nullptr) {
                     // first check if it's a full screen refresh
@@ -340,23 +337,14 @@ namespace uix {
                     }
                 }
                 // tell it we're flushing and run the callback
-                //++flushing;
-                switch(m_flushing) {
-                    case 0:
-                        m_flushing = 1;
-                        break;
-                    case 1:
-                        m_flushing = 2;
-                        break;
-                }
-                // the below may return immediately before the 
+                m_flushing=flushing+1;
+                m_on_flush_callback((rect16)subrect,bmp.begin(),m_on_flush_callback_state);
+                // the above may return immediately before the 
                 // transfer is complete. To take advantage of
                 // this, rather than wait, we swap out to a
                 // second buffer and continue drawing while
                 // the transfer is in progress.
                 switch_buffers();
-                m_on_flush_callback((rect16)subrect,bmp.begin(),m_on_flush_callback_state);
-                
             }
             return uix_result::success;
         }
@@ -443,7 +431,6 @@ namespace uix {
                     m_on_touch_callback_state(nullptr),
                     m_last_touched(nullptr)
                 {
-                    
         }
         /// @brief Moves a screen
         /// @param rhs The screen to move
@@ -602,7 +589,14 @@ namespace uix {
         }
         /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
         void flush_complete() {
-            m_flushing = false;
+            switch(m_flushing) {
+                case 2:
+                    m_flushing = 1;
+                    break;
+                default:
+                    m_flushing = 0;
+                    break;
+            }
         }
         /// @brief sets the palette for the screen
         /// @param value a pointer to the palette instance
