@@ -583,6 +583,7 @@ namespace uix {
             entry.ctrl = &control;
             entry.state = 0;
             if(m_controls.push_back(entry)) {
+                control.parent(*this);
                 return invalidate(control.bounds());
             }
             return uix_result::out_of_memory;

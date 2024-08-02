@@ -81,6 +81,9 @@ namespace uix {
         /// @param palette The palette associated with the control. This is usually the screen's palette.
         canvas(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent,palette),m_on_paint_cb(nullptr),m_on_paint_cb_state(nullptr) {
         }
+        /// @brief Constructs a canvas from a given parent with an optional palette
+        canvas() : base_type(),m_on_paint_cb(nullptr),m_on_paint_cb_state(nullptr) {
+        }
         /// @brief Called when the canvas is painted
         /// @param destination The draw destination
         /// @param clip The clipping rectangle

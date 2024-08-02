@@ -269,10 +269,19 @@ namespace uix {
         /// @brief Returns the associated palette if any.
         /// @return A pointer to the palette or null
         const palette_type* palette() const {return m_palette;}
+
+        /// @brief Sets the associated palette.
+        /// @param value the palette or null.
+        /// @return A pointer to the palette or null
+        void palette(const palette_type* value) { m_palette=value;}
+
         /// @brief Indicates the dimensions of the control, in pixels.
         /// @return a ssize16 indicating the width and height of the control
         ssize16 dimensions() const {
             return m_bounds.dimensions();
+        }
+        invalidation_tracker& parent() const {
+            return *m_parent;
         }
         /// @brief Indicates the bounds of the control
         /// @return an srect16 indicating the location and size of the control

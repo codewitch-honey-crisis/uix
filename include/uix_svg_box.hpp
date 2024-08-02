@@ -76,11 +76,15 @@ class svg_box : public uix::control<ControlSurfaceType> {
             this->invalidate();
         }
     }
-        /// @brief Constructs a new instance of a svg_box with the specified parent and optional palette
-        /// @param parent The parent. Usually this is the screen
-        /// @param palette The palette, if any. This is usually taken from the screen
-        svg_box(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
-        : base_type(parent, palette), m_svg(nullptr), m_rect(0, 0, 0, 0), m_justify(uix_justify::top_left) {
+    /// @brief Constructs a new instance of a svg_box with the specified parent and optional palette
+    /// @param parent The parent. Usually this is the screen
+    /// @param palette The palette, if any. This is usually taken from the screen
+    svg_box(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
+    : base_type(parent, palette), m_svg(nullptr), m_rect(0, 0, 0, 0), m_justify(uix_justify::top_left) {
+    }
+    /// @brief Constructs a new instance of a svg_box with the specified parent and optional palette
+    svg_box()
+    : base_type(), m_svg(nullptr), m_rect(0, 0, 0, 0), m_justify(uix_justify::top_left) {
     }
     /// @brief Indicates the justification of the SVG within the control
     /// @return The justification

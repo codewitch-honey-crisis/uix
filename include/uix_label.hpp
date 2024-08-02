@@ -99,6 +99,17 @@ namespace uix {
             m_vfnt = nullptr;
             m_fnt = nullptr;
         }
+        /// @brief Constructs a new instance of a label with the specified parent and optional palette
+        label() : base_type(), m_round_ratio(NAN),m_padding(4,4), m_text_line_height(25),m_text_justify(uix_justify::center),m_text_encoding(uix_encoding::utf8), m_text_rect(0,0,0,0),m_text_scale(NAN) {
+            constexpr static const auto white = gfx::rgba_pixel<32>(0xFF,0xFF,0xFF,0xFF);
+            constexpr static const auto transparent = gfx::rgba_pixel<32>(0,0,0,0);
+            background_color(transparent);
+            border_color(transparent);
+            text_color(white);
+            m_ofnt = nullptr;
+            m_vfnt = nullptr;
+            m_fnt = nullptr;
+        }
         /// @brief Indicates the label text
         /// @return The text of the label
         const char* text() const {

@@ -205,6 +205,13 @@ class svg_slider : public control<ControlSurfaceType> {
         m_bar_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
         m_bar_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
     }
+    /// @brief Constructs a slider from a given parent with an optional palette
+    svg_slider() : base_type(), m_knob_dirty(true), m_bar_dirty(true), m_knob_border_width(1), m_knob_shape(svg_slider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_width(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value(0), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr), m_on_released_cb(nullptr), m_on_released_state(nullptr) {
+        m_knob_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
+        m_knob_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
+        m_bar_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
+        m_bar_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
+    }
     /// @brief Indicates the color of the knob
     /// @return The color
     gfx::rgba_pixel<32> knob_color() const {

@@ -80,6 +80,9 @@ namespace uix {
         /// @param palette The associated palette, usually from the screen
         image(invalidation_tracker& parent, const palette_type* palette = nullptr,void*(allocator)(size_t) = ::malloc,void(deallocator)(void*) = ::free) : base_type(parent,palette),m_stream(nullptr), m_reset_stream(true), m_on_load_cb(nullptr),m_on_load_cb_state(nullptr),m_allocator(allocator),m_deallocator(deallocator) {
         }
+        /// @brief Constructs an image with the given parent and optional palette
+        image(void*(allocator)(size_t) = ::malloc,void(deallocator)(void*) = ::free) : base_type(),m_stream(nullptr), m_reset_stream(true), m_on_load_cb(nullptr),m_on_load_cb_state(nullptr),m_allocator(allocator),m_deallocator(deallocator) {
+        }
         /// @brief Indicates the stream that contains the image
         /// @return A pointer to the stream
         io::stream* stream() {

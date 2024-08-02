@@ -357,6 +357,14 @@ protected:
         m_justify(uix::uix_justify::top_left),
         m_color(gfx::color<gfx::rgba_pixel<32>>::white) {
     }
+    // standard control constructor (alt)
+    icon_box()
+        : base_type(), 
+        m_ico(nullptr), 
+        m_rect(0,0,0,0),
+        m_justify(uix::uix_justify::top_left),
+        m_color(gfx::color<gfx::rgba_pixel<32>>::white) {
+    }
     // paints the control
     virtual void on_paint(control_surface_type& destination, const uix::srect16& clip) override {
         Serial.println("On paint");

@@ -135,6 +135,29 @@ class svg_clock : public uix::control<ControlSurfaceType> {
         m_second_border_color = red;
         m_second_border_width = 1;
     }
+    /// @brief Constructs a new instance of a clock
+    svg_clock()
+        : base_type(), m_time(0), m_dirty(true), m_dragging(false),m_allow_drag(false) {
+        static const constexpr gfx::rgba_pixel<32> white(0xFF, 0xFF, 0xFF, 0xFF);
+        static const constexpr gfx::rgba_pixel<32> black(0x0, 0x0, 0x0, 0xFF);
+        static const constexpr gfx::rgba_pixel<32> gray(0x7F, 0x7F, 0x7F, 0xFF);
+        static const constexpr gfx::rgba_pixel<32> red(0xFF, 0x0, 0x0, 0xFF);
+        m_face_color = white;
+        m_face_border_color = white;
+        m_face_border_width = 1;
+        m_tick_color = gray;
+        m_tick_border_color = gray;
+        m_tick_border_width = 1;
+        m_hour_color = black;
+        m_hour_border_color = black;
+        m_hour_border_width = 1;
+        m_minute_color = black;
+        m_minute_border_color = black;
+        m_minute_border_width = 1;
+        m_second_color = red;
+        m_second_border_color = red;
+        m_second_border_width = 1;
+    }
     /// @brief Indicates the time
     /// @return The time
     time_t time() const {

@@ -168,6 +168,13 @@ class svg_switch : public control<ControlSurfaceType> {
         m_background_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
         m_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
     }
+    /// @brief Constructs a slider from a given parent with an optional palette
+    svg_switch() : base_type(), m_knob_dirty(true), m_backing_dirty(true), m_knob_border_width(1),m_knob_shape(svg_switch_shape::circle), m_knob_radiuses(2,2), m_border_width(1), m_radiuses(2, 2), m_value(false), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr) {
+        m_knob_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
+        m_knob_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
+        m_background_color = gfx::rgba_pixel<32>(255, 255, 255, 255);
+        m_border_color = gfx::rgba_pixel<32>(0, 0, 0, 255);
+    }
     /// @brief Indicates the color of the knob
     /// @return The color
     gfx::rgba_pixel<32> knob_color() const {

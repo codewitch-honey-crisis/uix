@@ -203,6 +203,17 @@ class svg_button final : public control<ControlSurfaceType> {
         m_vfnt = nullptr;
         m_fnt = nullptr;
     }
+    /// @brief Constructs a new instance of a label with the specified parent and optional palette
+    svg_button() : base_type(), m_doc_dirty(true), m_radiuses(0, 0), m_border_width(1), m_press_move(true), m_pressed(false), m_on_pressed_changed_callback(nullptr), m_on_pressed_changed_callback_state(nullptr), m_padding(4, 4), m_text_line_height(25), m_text_justify(uix_justify::center), m_text_encoding(uix_encoding::utf8) {
+        const auto white = gfx::rgba_pixel<32>(0xFF, 0xFF, 0xFF, 0xFF);
+        const auto black = gfx::rgba_pixel<32>(0x00, 0x00, 0x00, 0xFF);
+        background_color(white, true);
+        border_color(black, true);
+        text_color(black, true);
+        m_ofnt = nullptr;
+        m_vfnt = nullptr;
+        m_fnt = nullptr;
+    }
     /// @brief Indicates whether or not the button is currently pressed
     /// @return
     bool pressed() const {
