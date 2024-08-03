@@ -11,4 +11,5 @@
 #include "uix_svg_clock.hpp"
 #include "uix_canvas.hpp"
 #include "uix_image.hpp"
+#include "uix_display.hpp"
 #endif

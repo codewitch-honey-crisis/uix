@@ -122,7 +122,7 @@ static button_t title_button(main_screen);
 static image_touch_t cpu_image(main_screen);
 static canvas_t anim_canvas(anim_screen);
 // tell UIX the DMA transfer is complete
-static bool lcd_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t* edata, void* user_ctx) {
+static bool display_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t* edata, void* user_ctx) {
     if(active_screen!=nullptr) {
         active_screen->flush_complete();
     }
@@ -180,7 +180,7 @@ static void lcd_panel_init() {
     io_config.lcd_param_bits = 8,
     io_config.spi_mode = 0,
     io_config.trans_queue_depth = 10,
-    io_config.on_color_trans_done = lcd_flush_ready;
+    io_config.on_color_trans_done = display_flush_ready;
     // Attach the LCD to the SPI bus
     esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI3_HOST, &io_config, &io_handle);
 

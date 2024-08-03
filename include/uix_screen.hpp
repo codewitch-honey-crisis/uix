@@ -3,12 +3,102 @@
 #include "uix_core.hpp"
 #include <htcw_data.hpp>
 namespace uix {
+    class screen_base : public invalidation_tracker {
+    public:
+        /// @brief The callback for wait style DMA transfers like those used with GFX
+        typedef void(*wait_flush_callback_type)(void* state);
+        /// @brief The flush callback for transfering data to the display.
+        typedef void(*on_flush_callback_type)(const rect16& bounds,const void* bmp,void* state);
+        /// @brief The touch callback for getting touch screen touch location information
+        typedef void(*on_touch_callback_type)(point16* out_locations,size_t* in_out_locations_size,void* state);
+        
+        /// @brief Invalidate a rectangular region
+        /// @param rect The region to invalidate
+        /// @return The result of the operation
+        virtual uix_result invalidate(const srect16& rect)=0;
+        /// @brief Marks all dirty rectangles as clean
+        /// @return The result of the operation
+        virtual uix_result validate_all()=0;
+
+        /// @brief Indicates the dimensions of the screen
+        /// @return A ssize16 indicating the width and height.
+        virtual ssize16 dimensions() const = 0;
+        /// @brief Sets the dimensions of the screen
+        /// @param value the new dimensions
+        virtual void dimensions(ssize16 value) = 0;
+        /// @brief Indicates the bounds of the screen. This is (0,0)-(Width-1,Height-1)
+        /// @return an srect16 containing the bounds
+        virtual srect16 bounds() const = 0;
+        /// @brief Indicates whether the screen is currently in the middle of flushing. Unless update(false) is called or checked unsafely from another thread, this will always be false.
+        /// @return True if the screen is currently flushing, otherwise false.
+        virtual bool flushing() const = 0;
+        /// @brief Indicates the size of the transfer buffer(s)
+        /// @return a size_t containing the size of the buffer
+        virtual size_t buffer_size() const = 0;
+        /// @brief Sets the size of the transfer buffer(s)
+        /// @param value the new buffer size
+        virtual void buffer_size(size_t value) = 0;
+        /// @brief Gets the first or only buffer
+        /// @return A pointer to the buffer
+        virtual uint8_t* buffer1() = 0;
+        /// @brief Sets the first or only buffer
+        /// @param buffer A pointer to the new buffer
+        virtual void buffer1(uint8_t* buffer) = 0;
+        /// @brief Gets the second buffer
+        /// @return A pointer to the buffer
+        virtual uint8_t* buffer2() = 0;
+        /// @brief Sets the second buffer
+        /// @param buffer A pointer to the new buffer
+        virtual void buffer2(uint8_t* buffer) = 0;
+        /// @brief Invalidates the entire screen
+        /// @return The result of the operation
+        virtual uix_result invalidate() = 0;
+        /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
+        virtual void flush_complete() = 0;
+        /// @brief Retrieves the on_flush_callback pointer
+        /// @return A pointer to the callback method
+        virtual on_flush_callback_type on_flush_callback() const = 0;
+        /// @brief Retrieves the flush callback state
+        /// @return The user defined flush callback state
+        virtual void* on_flush_callback_state() const =0;
+        /// @brief Sets the flush callback
+        /// @param callback The callback that transfers data to the display
+        /// @param state A user defined state value to pass to the callback
+        virtual void on_flush_callback(on_flush_callback_type callback, void* state = nullptr) = 0;
+        /// @brief Indicates the wait callback for wait style DMA completion
+        /// @return A pointer to the callback method
+        virtual wait_flush_callback_type wait_flush_callback() const = 0;
+        /// @brief Retrieves the wait callback state
+        /// @return The user defined wait callback state
+        virtual void* wait_flush_callback_state() const = 0;
+        /// @brief Sets the wait callback
+        /// @param callback The callback that tells the MCU to wait for a previous DMA transfer to complete
+        /// @param state A user defined state value to pass to the callback
+        virtual void wait_flush_callback(wait_flush_callback_type callback, void* state = nullptr) = 0;
+        /// @brief Retrieves the touch callback
+        /// @return A pointer to the callback method
+        virtual on_touch_callback_type on_touch_callback() const = 0;
+        /// @brief Retrieves the touch callback state
+        /// @return The user defined touch callback state
+        virtual void* on_touch_callback_state() const = 0;
+        /// @brief Sets the touch callback
+        /// @param callback The callback that reports locations from a touch screen or pointer
+        /// @param state A user defined state value to pass to the callback
+        virtual void on_touch_callback(on_touch_callback_type callback, void* state = nullptr) = 0;
+        /// @brief Updates the screen, processing touch input and updating and flushing invalid portions of the screen to the display
+        /// @param full True to fully update the display, false to only update one subrect iteration rather than all dirty rectangles
+        /// @return The result of the operation
+        virtual uix_result update(bool full = true) = 0;
+        /// @brief Indicates if the screen has any dirty regions to update and flush
+        /// @return True if the screen needs updating, otherwise false
+        virtual bool dirty() const = 0;
+    };
     /// @brief Represents a screen
     /// @tparam BitmapType The type of backing bitmap used over the transfer buffer. This is what is drawn to by the controls.
     /// @tparam HorizontalAlignment The update rectangle alignment on the x-axis
     /// @tparam VerticalAlignment The update rectangle alignment on the y-axis
     template<typename BitmapType, uint8_t HorizontalAlignment = 1, uint8_t VerticalAlignment = 1>
-    class screen_ex final : public invalidation_tracker {
+    class screen_ex final : public screen_base {
     public:
         using type = screen_ex;
         using native_bitmap_type = gfx::bitmap<typename BitmapType::pixel_type,typename BitmapType::palette_type>;
@@ -17,12 +107,12 @@ namespace uix {
         using palette_type = typename bitmap_type::palette_type;
         using control_surface_type = control_surface<BitmapType>;
         using control_type = control<control_surface_type>;
-        /// @brief The callback for wait style DMA transfers like those used with GFX
-        typedef void(*wait_flush_callback_type)(void* state);
-        /// @brief The flush callback for transfering data to the display.
-        typedef void(*on_flush_callback_type)(const rect16& bounds,const void* bmp,void* state);
-        /// @brief The touch callback for getting touch screen touch location information
-        typedef void(*on_touch_callback_type)(point16* out_locations,size_t* in_out_locations_size,void* state);
+        // /// @brief The callback for wait style DMA transfers like those used with GFX
+        // typedef void(*wait_flush_callback_type)(void* state);
+        // /// @brief The flush callback for transfering data to the display.
+        // typedef void(*on_flush_callback_type)(const rect16& bounds,const void* bmp,void* state);
+        // /// @brief The touch callback for getting touch screen touch location information
+        // typedef void(*on_touch_callback_type)(point16* out_locations,size_t* in_out_locations_size,void* state);
         /// @brief The update rectangle alignment on the x-axis
         constexpr static const uint8_t horizontal_alignment = HorizontalAlignment;
         /// @brief The update rectangle alignment on the y-axis
@@ -446,12 +536,12 @@ namespace uix {
         }
         /// @brief Indicates the dimensions of the screen
         /// @return A ssize16 indicating the width and height.
-        ssize16 dimensions() const {
+        virtual ssize16 dimensions() const override {
             return m_dimensions;
         }
         /// @brief Sets the dimensions of the screen
         /// @param value the new dimensions
-        void dimensions(ssize16 value) {
+        virtual void dimensions(ssize16 value) override {
             if(value.width<1 || value.height<1) {
                 return;
             }
@@ -460,32 +550,32 @@ namespace uix {
         }
         /// @brief Indicates the bounds of the screen. This is (0,0)-(Width-1,Height-1)
         /// @return an srect16 containing the bounds
-        srect16 bounds() const {
+        virtual srect16 bounds() const override {
             return dimensions().bounds();
         }
         /// @brief Indicates whether the screen is currently in the middle of flushing. Unless update(false) is called or checked unsafely from another thread, this will always be false.
         /// @return True if the screen is currently flushing, otherwise false.
-        bool flushing() const {
+        virtual bool flushing() const override {
             return m_flushing!=0;
         }
         /// @brief Indicates the size of the transfer buffer(s)
         /// @return a size_t containing the size of the buffer
-        size_t buffer_size() const {
+        virtual size_t buffer_size() const override {
             return m_buffer_size;
         }
         /// @brief Sets the size of the transfer buffer(s)
         /// @param value the new buffer size
-        void buffer_size(size_t value) {
+        virtual void buffer_size(size_t value) override {
             m_buffer_size = value;
         }
         /// @brief Gets the first or only buffer
         /// @return A pointer to the buffer
-        uint8_t* buffer1() {
+        virtual uint8_t* buffer1() override {
             return m_buffer1;
         }
         /// @brief Sets the first or only buffer
         /// @param buffer A pointer to the new buffer
-        void buffer1(uint8_t* buffer) {
+        virtual void buffer1(uint8_t* buffer) override {
             m_buffer1=buffer;
             if(m_write_buffer==nullptr || m_write_buffer!=m_buffer2) {
                 m_write_buffer = buffer;
@@ -493,12 +583,12 @@ namespace uix {
         }
         /// @brief Gets the second buffer
         /// @return A pointer to the buffer
-        uint8_t* buffer2() {
+        virtual uint8_t* buffer2() override {
             return m_buffer2;
         }
         /// @brief Sets the second buffer
         /// @param buffer A pointer to the new buffer
-        void buffer2(uint8_t* buffer) {
+        virtual void buffer2(uint8_t* buffer) override {
             m_buffer2 = buffer;
             if(m_write_buffer==nullptr || m_write_buffer!=m_buffer1) {
                 m_write_buffer = buffer;
@@ -517,7 +607,7 @@ namespace uix {
         }
         /// @brief Invalidates the entire screen
         /// @return The result of the operation
-        uix_result invalidate() {
+        virtual uix_result invalidate() override {
             validate_all();
             return this->invalidate(this->bounds());
         }
@@ -589,7 +679,7 @@ namespace uix {
             return uix_result::out_of_memory;
         }
         /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
-        void flush_complete() {
+        virtual void flush_complete() override {
             switch(m_flushing) {
                 case 2:
                     m_flushing = 1;
@@ -611,59 +701,59 @@ namespace uix {
         }
         /// @brief Retrieves the on_flush_callback pointer
         /// @return A pointer to the callback method
-        on_flush_callback_type on_flush_callback() const {
+        virtual on_flush_callback_type on_flush_callback() const override {
             return m_on_flush_callback;
         }
         /// @brief Retrieves the flush callback state
         /// @return The user defined flush callback state
-        void* on_flush_callback_state() const {
+        virtual void* on_flush_callback_state() const override {
             return m_on_flush_callback_state;
         }
         /// @brief Sets the flush callback
         /// @param callback The callback that transfers data to the display
         /// @param state A user defined state value to pass to the callback
-        void on_flush_callback(on_flush_callback_type callback, void* state = nullptr) {
+        virtual void on_flush_callback(on_flush_callback_type callback, void* state = nullptr) override {
             m_on_flush_callback = callback;
             m_on_flush_callback_state = state;
         }
         /// @brief Indicates the wait callback for wait style DMA completion
         /// @return A pointer to the callback method
-        wait_flush_callback_type wait_flush_callback() const {
+        virtual wait_flush_callback_type wait_flush_callback() const override {
             return m_wait_flush_callback;
         }
         /// @brief Retrieves the wait callback state
         /// @return The user defined wait callback state
-        void* wait_flush_callback_state() const {
+        virtual void* wait_flush_callback_state() const override {
             return m_wait_flush_callback_state;
         }
         /// @brief Sets the wait callback
         /// @param callback The callback that tells the MCU to wait for a previous DMA transfer to complete
         /// @param state A user defined state value to pass to the callback
-        void wait_flush_callback(wait_flush_callback_type callback, void* state = nullptr) {
+        virtual void wait_flush_callback(wait_flush_callback_type callback, void* state = nullptr) override {
             m_wait_flush_callback = callback;
             m_wait_flush_callback_state = state;
         }
         /// @brief Retrieves the touch callback
         /// @return A pointer to the callback method
-        on_touch_callback_type on_touch_callback() const {
+        virtual on_touch_callback_type on_touch_callback() const override {
             return m_on_touch_callback;
         }
         /// @brief Retrieves the touch callback state
         /// @return The user defined touch callback state
-        void* on_touch_callback_state() const {
+        virtual void* on_touch_callback_state() const override {
             return m_on_touch_callback_state;
         }
         /// @brief Sets the touch callback
         /// @param callback The callback that reports locations from a touch screen or pointer
         /// @param state A user defined state value to pass to the callback
-        void on_touch_callback(on_touch_callback_type callback, void* state = nullptr) {
+        virtual void on_touch_callback(on_touch_callback_type callback, void* state = nullptr) override {
             m_on_touch_callback = callback;
             m_on_touch_callback_state = state;
         }
         /// @brief Updates the screen, processing touch input and updating and flushing invalid portions of the screen to the display
         /// @param full True to fully update the display, false to only update one subrect iteration rather than all dirty rectangles
         /// @return The result of the operation
-        uix_result update(bool full = true) {
+        virtual uix_result update(bool full = true) override {
             uix_result res = update_impl();
             if(res!=uix_result::success) {
                 return res;
@@ -678,7 +768,7 @@ namespace uix {
         }
         /// @brief Indicates if the screen has any dirty regions to update and flush
         /// @return True if the screen needs updating, otherwise false
-        bool dirty() const {
+        virtual bool dirty() const override {
             return this->m_dirty_rects.size()!=0;
         }
     };

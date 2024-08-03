@@ -75,7 +75,7 @@ label_t test_label(main_screen);
 svg_box_t test_svg(main_screen);
 
 // tell UIX the DMA transfer is complete
-static bool lcd_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t* edata, void* user_ctx) {
+static bool display_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t* edata, void* user_ctx) {
     main_screen.flush_complete();
     return true;
 }
@@ -113,7 +113,7 @@ void lcd_panel_init() {
 #endif
     io_config.lcd_cmd_bits = 8;   
     io_config.lcd_param_bits = 8; 
-    io_config.on_color_trans_done = lcd_flush_ready;
+    io_config.on_color_trans_done = display_flush_ready;
     io_config.dc_bit_offset = LCD_DC_BIT_OFFSET;  
 #if defined(LCD_ENABLE_CONTROL_PHASE) && LCD_ENABLE_CONTROL_PHASE != 0
     io_config.flags.disable_control_phase = 1;
