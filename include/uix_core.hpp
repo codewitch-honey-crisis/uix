@@ -1,14 +1,17 @@
 #ifndef HTCW_UIX_CORE_HPP
 #define HTCW_UIX_CORE_HPP
 #include <gfx_core.hpp>
+#include <gfx_math.hpp>
 #include <gfx_encoding.hpp>
 #include <gfx_pixel.hpp>
 #include <gfx_palette.hpp>
 #include <gfx_positioning.hpp>
 #include <gfx_bitmap.hpp>
+#include <gfx_canvas.hpp>
+#include <gfx_image.hpp>
 #include <gfx_font.hpp>
-#include <gfx_open_font.hpp>
-#include <gfx_viewport.hpp>
+#include <gfx_encoding.hpp>
+#include <gfx_draw.hpp>
 namespace uix {
     using point16 = gfx::point16;
     using spoint16 = gfx::spoint16;
@@ -22,7 +25,8 @@ namespace uix {
     using path16 = gfx::path16;
     using spath16 = gfx::spath16;
     using pathf = gfx::pathf;
-    using uix_encoding = gfx::gfx_encoding;
+    using text_encoder = gfx::text_encoder;
+    using text_encoding = gfx::text_encoding;
     /// @brief Indicates an error or success result
     enum struct uix_result {
         /// @brief The operation completed successfully
@@ -83,111 +87,226 @@ namespace uix {
         typename uix_remove_reference<T>::type&& uix_move(T&& arg) {
             return static_cast<typename uix_remove_reference<T>::type&&>(arg);
         }
+        template<typename BitmapType>
+        class control_surface_impl_base {
+            using type = control_surface_impl_base;
+            using pixel_type = typename BitmapType::pixel_type;
+            using palette_type = typename BitmapType::palette_type;
+            using bitmap_type= BitmapType;
+        protected:
+            bitmap_type& m_bitmap;
+            srect16 m_rect;
+            spoint16 m_offset;
+            void do_move(type& rhs) {
+                m_bitmap = rhs.m_bitmap;
+                m_rect = rhs.m_rect;
+                m_offset = rhs.m_offset;
+            }
+            void do_copy(type& rhs) {
+                m_bitmap = rhs.m_bitmap;
+                m_rect = rhs.m_rect;
+                m_offset= rhs.m_offset;
+            }
+        public:
+            control_surface_impl_base(bitmap_type& bmp, const srect16& rect, spoint16 offset) : m_bitmap(bmp),m_rect(rect),m_offset(offset)  {
+
+            }
+
+            /// @brief Retrieves the palette, if any
+            /// @return The palette
+            const palette_type* palette() const {
+                return m_bitmap.palette();
+            }
+            /// @brief Reports the size of the draw surface
+            /// @return a size16 with the width and height of the draw surface
+            size16 dimensions() const {
+                return (size16)m_rect.dimensions();
+            }
+            /// @brief Reports the bounds of the draw surface from (0,0)
+            /// @return a rect16 anchored to (0,0) and extending to the size of the draw surface
+            rect16 bounds() const {
+                return rect16(point16::zero(),dimensions());
+            }
+            /// @brief Returns the bounds of the portion of the backing bitmap where the control surface exists
+            /// @return an srect16 reporting the bounds
+            const srect16& render_bounds() const {
+                return m_rect;
+            }
+            /// @brief Returns the offset of the surface from the upper left of the backing bitmap
+            /// @return an spoint16 reporting the offset
+            const spoint16& render_offset() const {
+                return m_offset;
+            }
+            /// @brief Reports the color of the pixel at a location
+            /// @param location The location to check
+            /// @param out_pixel A pointer to the pixel data to fill
+            /// @return The result of the operation
+            gfx::gfx_result point(point16 location, pixel_type* out_pixel) const {
+                location.x+=m_rect.x1;
+                location.y+=m_rect.y1;
+                return m_bitmap.point(location,out_pixel);
+            }
+            /// @brief Sets the color of a pixel at a location
+            /// @param location The location
+            /// @param pixel The new color
+            /// @return The result of the operation
+            gfx::gfx_result point(point16 location, pixel_type pixel) {
+                location.x+=m_rect.x1;
+                location.y+=m_rect.y1;
+                return m_bitmap.point(location,pixel);
+            }
+            /// @brief Fills a rectangular region with a color
+            /// @param bounds The rect16 coordinates to fill
+            /// @param pixel The new color
+            /// @return The result of the operation
+            gfx::gfx_result fill(const rect16& bounds, pixel_type pixel) {
+                if(bounds.intersects(this->dimensions().bounds())) {
+                    srect16 b = ((srect16)bounds);
+                    b.x1+=m_rect.x1;
+                    b.y1+=m_rect.y1;
+                    b.x2+=m_rect.x1;
+                    b.y2+=m_rect.y1;
+                    if(b.intersects((srect16)m_bitmap.bounds())) {
+                        b=b.crop((srect16)m_bitmap.bounds());
+                        return m_bitmap.fill((rect16)b,pixel);
+                    }
+                }
+                return gfx::gfx_result::success;
+            }
+            /// @brief Clears a rectangular region, setting it to the default color
+            /// @param bounds The rect16 coordinates to clear
+            gfx::gfx_result clear(const rect16& bounds) {
+                return fill(bounds,pixel_type());
+            }
+            /// @brief Copies a region to the specified destination
+            /// @tparam Destination The draw destination type
+            /// @param src_rect The source rectangle
+            /// @param dst The draw destination instance
+            /// @param location The location to copy to
+            /// @return A gfx_result that indicates the status of the operation
+            template<typename Destination>
+            inline gfx::gfx_result copy_to(const rect16& src_rect,Destination& dst,point16 location) const {
+                srect16 b = (srect16)src_rect;
+                b.x1+=m_rect.x1;
+                b.y1+=m_rect.y1;
+                b.x2+=m_rect.x1;
+                b.y2+=m_rect.y1;
+                rect16 bt;
+                
+                if(gfx::helpers::draw_translate_adjust(b,&bt)) {
+                    if(b.x1<0) {
+                        location.x-=b.x1;
+                    }
+                    if(b.y1<0) {
+                        location.y-=b.y1;
+                    }
+                    return m_bitmap.copy_to(bt,dst,location);
+                }
+            
+                return gfx::gfx_result::success;
+            }
+        };
+        template<typename BitmapType,bool BltSpans> 
+        class control_surface_impl : public control_surface_impl_base<BitmapType> {
+            using type = control_surface_impl;
+            using base_type = control_surface_impl_base<BitmapType>;
+            using pixel_type = typename BitmapType::pixel_type;
+            using palette_type = typename BitmapType::palette_type;
+            using bitmap_type= BitmapType;
+        
+        public:
+            control_surface_impl(bitmap_type& bmp, const srect16& rect,spoint16 offset) : base_type(bmp,rect,offset) {
+
+            }
+            
+        };
+        template<typename BitmapType> 
+        class control_surface_impl<BitmapType,true> : public control_surface_impl_base<BitmapType>, public gfx::blt_span {
+            using base_type = helpers::control_surface_impl_base<BitmapType>;
+            using pixel_type = typename BitmapType::pixel_type;
+        public:
+            control_surface_impl(BitmapType& bmp, const srect16& rect,spoint16 offset) : base_type(bmp,rect,offset) {
+
+            }
+            virtual size16 span_dimensions() const {
+                return this->dimensions();
+            }
+            virtual size_t pixel_width() const {
+                return BitmapType::pixel_type::byte_alignment;
+            }
+            virtual const gfx::gfx_cspan cspan(point16 location) const override {
+                point16 oloc = location.offset(this->m_rect.x1,this->m_rect.y1);
+                gfx::gfx_cspan result = this->m_bitmap.cspan(oloc);
+                if(!this->m_bitmap.bounds().intersects(oloc)) {
+                    result.cdata = nullptr;
+                    result.length = 0;
+                    return result;
+                }
+                
+                result.length =  gfx::math::max(this->m_rect.x2-this->m_rect.x1+1-location.x,0)*pixel_type::byte_alignment;
+                result.length = gfx::math::min(result.length,(this->m_bitmap.dimensions().width-location.x)*pixel_type::byte_alignment);
+                return result;
+            }
+            virtual gfx::gfx_span span(point16 location) const override {
+                
+                point16 oloc = location.offset(this->m_rect.x1,this->m_rect.y1);
+                gfx::gfx_span result = this->m_bitmap.span(oloc);
+                if(!this->m_bitmap.bounds().intersects(oloc)) {
+                    result.data = nullptr;
+                    result.length = 0;
+                    return result;
+                }
+                
+                result.length =  gfx::math::max(this->m_rect.x2-this->m_rect.x1+1-location.x,0)*pixel_type::byte_alignment;
+                result.length = gfx::math::min(result.length,(this->m_bitmap.dimensions().width-location.x)*pixel_type::byte_alignment);
+                return result;
+
+            
+            }
+        };
     }
     /// @brief Represents a surface on which drawing takes place. Control surfaces are translated to their physical screen coordinates.
     /// @tparam BitmapType The type of draw target that backs the control surface - usually a standard in memory bitmap<> 
     template<typename BitmapType>
-    class control_surface final {
+    class control_surface final : public helpers::control_surface_impl<BitmapType,BitmapType::caps::blt_spans> {
+    protected:
+        using base_type = helpers::control_surface_impl<BitmapType,BitmapType::caps::blt_spans>;
     public:
         using type = control_surface;
         using pixel_type = typename BitmapType::pixel_type;
         using palette_type = typename BitmapType::palette_type;
         using bitmap_type= BitmapType;
-        using caps = gfx::gfx_caps<false,false,false,false,false,true,false>;
-    private:
-        bitmap_type& m_bitmap;
-        srect16 m_rect;
-        void do_move(control_surface& rhs) {
-            m_bitmap = rhs.m_bitmap;
-            m_rect = rhs.m_rect;
-        }
-        void do_copy(control_surface& rhs) {
-            m_bitmap = rhs.m_bitmap;
-            m_rect = rhs.m_rect;
-        }
-
+        using caps = gfx::gfx_caps<false, BitmapType::caps::blt_spans,false,BitmapType::caps::copy_to>;
+        
     public:
         /// @brief Moves the control surface
         /// @param rhs The control surface to move
-        control_surface(control_surface&& rhs) : m_bitmap(rhs.m_bitmap) {
-            do_move_control(rhs);
+        control_surface(control_surface&& rhs) : base_type(rhs.m_bitmap,rhs.m_rect,rhs.m_offset) {
+            
         }
         /// @brief Moves the control surface
         /// @param rhs The control surface to move
         /// @return this
         control_surface& operator=(control_surface&& rhs) {
-            do_move_control(rhs);
+            this->do_move(rhs);
             return *this;
         }
         /// @brief Copies the control surface
         /// @param rhs The control surface to copy
         control_surface(const control_surface& rhs) {
-            do_copy_control(rhs);
+            this->do_copy(rhs);
         }
         /// @brief Copies the control surface
         /// @param rhs The control surface to copy
         /// @return this
         control_surface& operator=(const control_surface& rhs) {
-            do_copy_control(rhs);
+            this->do_copy(rhs);
             return *this;
         }
         /// @brief Constructs a control surface from a backing bitmap
         /// @param bmp The backing bitmap to use
         /// @param rect The location of the control surface within the bitmap
-        control_surface(bitmap_type& bmp,const srect16& rect) : m_bitmap(bmp) {
-            m_rect = rect;
-        }
-        /// @brief Retrieves the palette, if any
-        /// @return The palette
-        const palette_type* palette() const {
-            return m_bitmap.palette();
-        }
-        /// @brief Reports the size of the draw surface
-        /// @return a size16 with the width and height of the draw surface
-        size16 dimensions() const {
-            return (size16)m_rect.dimensions();
-        }
-        /// @brief Reports the bounds of the draw surface from (0,0)
-        /// @return a rect16 anchored to (0,0) and extending to the size of the draw surface
-        rect16 bounds() const {
-            return rect16(point16::zero(),dimensions());
-        }
-        /// @brief Reports the color of the pixel at a location
-        /// @param location The location to check
-        /// @param out_pixel A pointer to the pixel data to fill
-        /// @return The result of the operation
-        gfx::gfx_result point(point16 location, pixel_type* out_pixel) const {
-            location.offset_inplace(m_rect.x1,m_rect.y1);
-            return m_bitmap.point(location,out_pixel);
-        }
-        /// @brief Sets the color of a pixel at a location
-        /// @param location The location
-        /// @param pixel The new color
-        /// @return The result of the operation
-        gfx::gfx_result point(point16 location, pixel_type pixel) {
-            spoint16 loc = ((spoint16)location).offset(m_rect.x1,m_rect.y1);
-            return m_bitmap.point((point16)loc,pixel);
-            return gfx::gfx_result::success;
-        }
-        /// @brief Fills a rectangular region with a color
-        /// @param bounds The rect16 coordinates to fill
-        /// @param pixel The new color
-        /// @return The result of the operation
-        gfx::gfx_result fill(const rect16& bounds, pixel_type pixel) {
-            if(bounds.intersects(this->dimensions().bounds())) {
-                srect16 b = ((srect16)bounds);
-                b=b.offset(m_rect.x1,m_rect.y1);
-                if(b.intersects((srect16)m_bitmap.bounds())) {
-                    b=b.crop((srect16)m_bitmap.bounds());
-                    return m_bitmap.fill((rect16)b,pixel);
-                }
-            }
-            return gfx::gfx_result::success;
-        }
-        /// @brief Clears a rectangular region, setting it to the default color
-        /// @param bounds The rect16 coordinates to clear
-        gfx::gfx_result clear(const rect16& bounds) {
-            return fill(bounds,pixel_type());
+        control_surface(bitmap_type& bmp,const srect16& rect, spoint16 offset) : base_type(bmp,rect,offset) {
         }
     };
     /// @brief Tracks dirty rectangles
@@ -290,14 +409,18 @@ namespace uix {
         }
         /// @brief Sets the bounds of the control
         /// @param value An srect16 indicating the location and size
-        virtual void bounds(const srect16& value) {
-            if(m_visible) {
-                if(m_parent!=nullptr) {
-                    m_parent->invalidate(m_bounds);
-                    m_parent->invalidate(value);
+        void bounds(const srect16& value) {
+            if(on_before_resize(value)) {
+                if(m_visible) {
+                    if(m_parent!=nullptr) {
+                        m_parent->invalidate(m_bounds);
+                        m_parent->invalidate(value);
+                    }
                 }
+                m_bounds = value;
+                on_after_resize();
             }
-            m_bounds = value;
+            
         }
         /// @brief Override to handle drawing the control
         /// @param destination The control_surface<> to draw to
@@ -315,10 +438,19 @@ namespace uix {
         virtual void on_release() {
         }
         /// @brief Called once before the control is first rendered during update()
-        virtual void on_before_render() {
+        virtual void on_before_paint() {
         }
         /// @brief Called once after the control is last rendered during update()
-        virtual void on_after_render() {
+        virtual void on_after_paint() {
+        }
+        /// @brief Called once before the control is moved or resized. If false is returned, no resize occurs
+        /// @param bounds The new bounds
+        /// @returns true if the new size is valid, otherwise false to cancel resizing
+        virtual bool on_before_resize(const srect16& bounds) {
+            return true;
+        }
+        /// @brief Called once after the control is last rendered during update()
+        virtual void on_after_resize() {
         }
         /// @brief Indicates whether the control is shown
         /// @return True if visible, otherwise false

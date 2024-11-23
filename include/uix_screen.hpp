@@ -121,7 +121,7 @@ namespace uix {
         struct tracker_entry {
             control_type* ctrl;
             // 0 = nothing called yet
-            // 1 = on_before_render called
+            // 1 = on_before_paint called
             // 2 = on_after_render_called
             int state;
         };
@@ -278,62 +278,14 @@ namespace uix {
                     }
                 }
             }
-            int flushing = m_flushing;
             // rendering process
             // note we skip this until we have a free buffer
             if(m_on_flush_callback!=nullptr && 
-                    m_buffer_size!=0 &&
-                    m_buffer1!=nullptr&&
-                    flushing<(1+(m_buffer2!=nullptr)) && 
+                    m_buffer_size!=0 && 
+                    m_buffer1!=nullptr &&
                     m_dirty_rects.size()!=0) {
+                
                 if(m_it_dirties==nullptr) {
-                    // first check if it's a full screen refresh
-#ifdef HTCW_UIX_FULL_SCREEN_REFRESH
-                    if(m_dirty_rects.size()==1 && m_dirty_rects.begin()[0]==(rect16)this->bounds()) {
-                        // rewrite the entire screen before we draw controls
-                        size_t bmp_stride = native_bitmap_type::sizeof_buffer(size16(dimensions().width, 1));
-                        size_t bmp_min = native_bitmap_type::sizeof_buffer(size16(dimensions().width, v_align_up(1)));
-                        uint16_t bmp_lines = v_align_down(m_buffer_size / bmp_stride);
-                        if (bmp_lines > dimensions().height) {
-                            bmp_lines = dimensions().height;
-                        }
-                        if (bmp_min > m_buffer_size) {
-                            return uix_result::out_of_memory;
-                        }
-                        uint8_t* buf = (uint8_t*)m_write_buffer;
-                        uint16_t y = 0;
-                        int buf_fill_count = 0;
-                        while(true) {
-                            if (bmp_lines + y > dimensions().height) {
-                                bmp_lines = dimensions().height - y;
-                            }
-                            srect16 subrect(0, y, dimensions().width - 1, y + bmp_lines-1);
-                            bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
-                            // we only need to fill the buffer until we've filled
-                            // the number of buffers that there are (1 or 2)
-                            if(buf_fill_count<(1+(m_buffer2!=nullptr))) {
-                                // fill it with the screen color
-                                bmp.fill(bmp.bounds(), m_background_color);
-                                ++buf_fill_count;
-                            }
-                            m_flushing = flushing + 1;
-                            m_on_flush_callback((rect16)subrect, bmp.begin(), m_on_flush_callback_state);
-                            y+=bmp_lines;
-                            if(y>=dimensions().height) {
-                                break;
-                            }
-                            switch_buffers();
-                        }
-                        m_dirty_rects.clear();
-                        if(!m_controls.size()) {
-                            return uix_result::success;
-                        }
-                        for(auto te : m_controls) {
-                            te.ctrl->invalidate();
-                            te.state = 0;
-                        }
-                    }
-#endif // HTCW_UIX_FULL_SCREEN_REFRESH
                     // m_it_dirties is null when not rendering
                     // so basically when it's null this is the first call
                     // and we initialize some stuff
@@ -361,7 +313,7 @@ namespace uix {
                             // first tell any necessary controls we're done rendering
                             for(typename controls_type::iterator it = m_controls.begin();it!=m_controls.end();++it) {
                                 if(it->state==1) {
-                                    it->ctrl->on_after_render();
+                                    it->ctrl->on_after_paint();
                                     it->state = 0;
                                 }
                             }
@@ -400,6 +352,13 @@ namespace uix {
                 subrect=subrect.crop((srect16)aligned);
                 // create a bitmap for the subrect over the write buffer
                 uint8_t* buf = (uint8_t*)m_write_buffer;
+                // wait for flush completion
+                int flushing;
+                if(m_buffer2==nullptr) {
+                   do {
+                        flushing = m_flushing;
+                    } while(flushing);
+                }
                 //assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
                 bitmap_type bmp((size16)subrect.dimensions(),buf,m_palette);
                 // fill it with the screen color
@@ -411,23 +370,29 @@ namespace uix {
                     if(pctl->visible() && pctl->bounds().intersects(subrect)) {
                         // create the offset surface rectangle for drawing
                         srect16 surface_rect = pctl->bounds();
+                        spoint16 bmp_offset(surface_rect.x1-subrect.x1,surface_rect.y1-subrect.y1);
                         surface_rect.offset_inplace(-subrect.x1,-subrect.y1);
                         // create the clip rectangle for the control
                         srect16 surface_clip = pctl->bounds().crop(subrect);
                         surface_clip.offset_inplace(-pctl->bounds().x1,-pctl->bounds().y1);
                         // create the control surface
-                        control_surface_type surface(bmp,surface_rect);
-                        // if we haven't called on_before_render, do so now
+                        control_surface_type surface(bmp,surface_rect,bmp_offset);
+                        // if we haven't called on_before_paint, do so now
                         if(ctl_it->state==0) {
-                            pctl->on_before_render();
+                            pctl->on_before_paint();
                             ctl_it->state=1;
                         }
                         // and paint
                         pctl->on_paint(surface,surface_clip);
                     }
                 }
+                if(m_buffer2!=nullptr) {
+                    do {
+                        flushing = m_flushing;
+                    } while(flushing);
+                }
                 // tell it we're flushing and run the callback
-                m_flushing=flushing+1;
+                m_flushing=m_flushing+1;
                 m_on_flush_callback((rect16)subrect,bmp.begin(),m_on_flush_callback_state);
                 // the above may return immediately before the 
                 // transfer is complete. To take advantage of
@@ -680,14 +645,10 @@ namespace uix {
         }
         /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
         virtual void flush_complete() override {
-            switch(m_flushing) {
-                case 2:
-                    m_flushing = 1;
-                    break;
-                default:
-                    m_flushing = 0;
-                    break;
+            if(m_flushing==0) {
+                return;
             }
+            m_flushing=m_flushing-1;
         }
         /// @brief sets the palette for the screen
         /// @param value a pointer to the palette instance

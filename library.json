@@ -1,6 +1,6 @@
 {
     "name": "htcw_uix",
-    "version": "0.17.0",
+    "version": "1.0.0",
     "description": "A UI library for embedded and IoT devices, for use with htcw_gfx",
     "keywords": ["tft", "UX","UI","GUI","user-experience","user-interface", "graphics", "spi", "parallel", "i2c", "drawing", "jpg", "ttf", "font"],
     "authors": {
@@ -18,82 +18,51 @@
         "type": "git",
         "url": "https://github.com/codewitch-honey-crisis/uix.git"
     },
-    "dependencies": {
-        "codewitch-honey-crisis/htcw_gfx": "^1.661"
-    },
     "examples": [
         {
-            "name": "Benchmark",
+            "name": "benchmark",
             "base": "examples/benchmark",
             "files": [
                 "platformio.ini",
-                "sdkconfig.ttgo-t1-esp-idf",
+                "include/lcd_config.h",
                 "include/assets/architects_daughter.hpp",
                 "src/main.cpp"
             ]
         },
         {
-            "name": "TTGO Basic",
-            "base": "examples/ttgo_basic",
+            "name": "core2_color_picker",
+            "base": "examples/core2_color_picker",
             "files": [
                 "platformio.ini",
-                "include/assets/bee_icon.hpp",
-                "include/assets/telegrama.hpp",
-                "src/main.cpp"
-            ]
-        },
-        {
-            "name": "Wio Terminal Basic",
-            "base": "examples/wio_terminal_basic",
-            "files": [
-                "platformio.ini",
-                "include/assets/bee_icon.hpp",
-                "include/assets/telegrama.hpp",
-                "src/main.cpp"
-            ]
-        },
-        {
-            "name": "Lilygo T5 4.7in Basic",
-            "base": "examples/lilygo_t5_4_7_basic",
-            "files": [
-                "platformio.ini",
-                "include/assets/bee_icon.hpp",
-                "include/assets/telegrama.hpp",
-                "src/main.cpp"
-            ]
-        },
-        {
-            "name": "M5Stack Core2 Basic",
-            "base": "examples/m5stack_core2_basic",
-            "files": [
-                "platformio.ini",
-                "include/assets/bee_icon.hpp",
-                "include/assets/telegrama.hpp",
-                "src/main.cpp"
-            ]
-        },
-        {
-            "name": "M5Stack Core2 Intermediate",
-            "base": "examples/m5stack_core2_intermediate",
-            "files": [
-                "platformio.ini",
+                "include/lcd_config.h",
                 "include/assets/architects_daughter.hpp",
-                "include/assets/cpu_pngtree.hpp",
                 "src/main.cpp"
             ]
         },
         {
-            "name": "Heltek Wifi Kit V2 Basic",
-            "base": "examples/heltek_wifi2_basic",
+            "name": "core2_audio_monitor",
+            "base": "examples/core2_audio_monitor",
             "files": [
                 "platformio.ini",
-                "include/ssd1306_surface_adapter.hpp",
-                "include/assets/bee_icon.hpp",
-                "include/assets/telegrama.hpp",
+                "include/hamming_window.hpp",
+                "include/i2s_sampler.hpp",
+                "include/kiss_fft_log.h",
+                "include/kiss_fft.h",
+                "include/kiss_fftr.h",
+                "include/lcd_config.h",
+                "include/palette.hpp",
+                "include/processor.hpp",
+                "include/ui.hpp",
+                "src/_kiss_fft_guts.h",
+                "src/kiss_fft.c",
+                "src/kiss_fftr.c",
                 "src/main.cpp"
             ]
         }
     ],
+    "dependencies": {
+        "codewitch-honey-crisis/htcw_gfx": "^2.0.0"
+    },
     "export": {
         "exclude":
         [

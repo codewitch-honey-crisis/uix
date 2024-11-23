@@ -49,16 +49,16 @@ namespace uix {
             m_on_touch_callback = callback;
             m_on_touch_callback_state = state;
         }
-        screen_base* display::active_screen() const {
-            return m_active_screen;
+        screen_base& display::active_screen() const {
+            return *m_active_screen;
         }
-        void display::active_screen(screen_base* value) {
+        void display::active_screen(screen_base& value) {
             if(m_active_screen!=nullptr) {
                 m_active_screen->on_flush_callback(nullptr);
                 m_active_screen->wait_flush_callback(nullptr);
                 m_active_screen->on_touch_callback(nullptr);
             }
-            m_active_screen = value;
+            m_active_screen = &value;
             if(m_active_screen!=nullptr) {
                 m_active_screen->on_flush_callback(m_on_flush_callback,m_on_flush_callback_state);
                 m_active_screen->wait_flush_callback(m_wait_flush_callback);

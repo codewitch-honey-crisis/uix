@@ -68,8 +68,8 @@ namespace uix {
         void on_touch_callback(screen_base::on_touch_callback_type callback, void* state = nullptr);
         /// @brief Indicates the active screen
         /// @return returns the active screen for this display, if any.
-        screen_base* active_screen() const;
-        void active_screen(screen_base* value);
+        screen_base& active_screen() const;
+        void active_screen(screen_base& value);
         /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
         void flush_complete();
         uix_result update(bool full = true);

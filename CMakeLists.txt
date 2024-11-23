@@ -5,6 +5,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
+
+FetchContent_Declare(htcw_gfx
+    GIT_REPOSITORY https://github.com/codewitch-honey-crisis/htcw_gfx.git
+    GIT_TAG 2.0.0
+    GIT_SHALLOW ON
+    FIND_PACKAGE_ARGS 2.0.0
+)
+
+FetchContent_MakeAvailable(htcw_ml)
+
 add_library(htcw_uix src/uix_display.cpp)
 target_include_directories(htcw_uix INTERFACE
     "${PROJECT_SOURCE_DIR}/include"
