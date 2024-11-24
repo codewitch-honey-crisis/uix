@@ -13,7 +13,7 @@ FetchContent_Declare(htcw_gfx
     FIND_PACKAGE_ARGS 2.0.0
 )
 
-FetchContent_MakeAvailable(htcw_ml)
+FetchContent_MakeAvailable(htcw_gfx)
 
 add_library(htcw_uix src/uix_display.cpp)
 target_include_directories(htcw_uix INTERFACE
