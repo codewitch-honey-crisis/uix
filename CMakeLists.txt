@@ -8,9 +8,9 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
 FetchContent_Declare(htcw_gfx
     GIT_REPOSITORY https://github.com/codewitch-honey-crisis/gfx.git
-    GIT_TAG 2.0.0
+    GIT_TAG 2.0.1
     GIT_SHALLOW ON
-    FIND_PACKAGE_ARGS 2.0.0
+    FIND_PACKAGE_ARGS 2.0.1
 )
 
 FetchContent_MakeAvailable(htcw_gfx)

@@ -1,6 +1,9 @@
 #include <uix_display.hpp>
 
 namespace uix {
+        display::display() :  m_active_screen(nullptr),m_on_flush_callback(nullptr),m_wait_flush_callback(nullptr),m_on_touch_callback(nullptr) {
+            
+        }
         size_t display::buffer_size() const {
             return m_buffer_size;
         }

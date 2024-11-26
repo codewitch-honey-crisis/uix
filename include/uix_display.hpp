@@ -18,6 +18,8 @@ namespace uix {
         size_t m_buffer_size;
         uint8_t* m_buffer1, *m_buffer2;
     public:
+        // constructs a new instance
+        display();
         /// @brief Indicates the size of the transfer buffer(s)
         /// @return a size_t containing the size of the buffer
         size_t buffer_size() const;

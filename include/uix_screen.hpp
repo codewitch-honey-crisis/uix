@@ -367,7 +367,7 @@ namespace uix {
                 for(typename controls_type::iterator ctl_it = m_controls.begin();ctl_it!=m_controls.end();++ctl_it) {
                     control_type* pctl = ctl_it->ctrl;
                     // if it's visible and intersects this subrect
-                    if(pctl->visible() && pctl->bounds().intersects(subrect)) {
+                    if(pctl->visible() && pctl->bounds().intersects(subrect)) {                        
                         // create the offset surface rectangle for drawing
                         srect16 surface_rect = pctl->bounds();
                         spoint16 bmp_offset(surface_rect.x1-subrect.x1,surface_rect.y1-subrect.y1);
@@ -385,7 +385,9 @@ namespace uix {
                         // and paint
                         pctl->on_paint(surface,surface_clip);
                     }
+
                 }
+            
                 if(m_buffer2!=nullptr) {
                     do {
                         flushing = m_flushing;
