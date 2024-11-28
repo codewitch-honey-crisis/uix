@@ -1,7 +1,7 @@
 #include <uix_display.hpp>
 
 namespace uix {
-        display::display() :  m_active_screen(nullptr),m_on_flush_callback(nullptr),m_wait_flush_callback(nullptr),m_on_touch_callback(nullptr) {
+        display::display() :  m_active_screen(nullptr),m_on_flush_callback(nullptr),m_on_yield_callback(nullptr), m_on_wait_flush_callback(nullptr),m_on_touch_callback(nullptr) {
             
         }
         size_t display::buffer_size() const {
@@ -32,15 +32,25 @@ namespace uix {
             m_on_flush_callback = callback;
             m_on_flush_callback_state = state;
         }
-        screen_base::wait_flush_callback_type display::wait_flush_callback() const {
-            return m_wait_flush_callback;
+        screen_base::on_yield_callback_type display::on_yield_callback() const  {
+            return m_on_yield_callback;
         }
-        void* display::wait_flush_callback_state() const {
-            return m_wait_flush_callback_state;
+        void* display::on_yield_callback_state() const {
+            return m_on_yield_callback_state;
         }
-        void display::wait_flush_callback(screen_base::wait_flush_callback_type callback, void* state) {
-            m_wait_flush_callback = callback;
-            m_wait_flush_callback_state = state;
+        void display::on_yield_callback(screen_base::on_yield_callback_type callback, void* state) {
+            m_on_yield_callback = callback;
+            m_on_yield_callback_state = state;
+        }
+        screen_base::on_wait_flush_callback_type display::on_wait_flush_callback() const {
+            return m_on_wait_flush_callback;
+        }
+        void* display::on_wait_flush_callback_state() const {
+            return m_on_wait_flush_callback_state;
+        }
+        void display::on_wait_flush_callback(screen_base::on_wait_flush_callback_type callback, void* state) {
+            m_on_wait_flush_callback = callback;
+            m_on_wait_flush_callback_state = state;
         }
         screen_base::on_touch_callback_type display::on_touch_callback() const {
             return m_on_touch_callback;
@@ -58,13 +68,14 @@ namespace uix {
         void display::active_screen(screen_base& value) {
             if(m_active_screen!=nullptr) {
                 m_active_screen->on_flush_callback(nullptr);
-                m_active_screen->wait_flush_callback(nullptr);
+                m_active_screen->on_wait_flush_callback(nullptr);
                 m_active_screen->on_touch_callback(nullptr);
             }
             m_active_screen = &value;
             if(m_active_screen!=nullptr) {
                 m_active_screen->on_flush_callback(m_on_flush_callback,m_on_flush_callback_state);
-                m_active_screen->wait_flush_callback(m_wait_flush_callback);
+                m_active_screen->on_yield_callback(m_on_yield_callback,m_on_yield_callback_state);
+                m_active_screen->on_wait_flush_callback(m_on_wait_flush_callback);
                 m_active_screen->on_touch_callback(m_on_touch_callback,m_on_touch_callback_state);
                 m_active_screen->buffer_size(m_buffer_size);
                 m_active_screen->buffer1(m_buffer1);

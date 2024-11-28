@@ -1,4 +1,4 @@
-
+// Core 2 Audio Monitor
 #if __has_include(<Arduino.h>)
 #include <Arduino.h>
 #else
@@ -40,7 +40,6 @@ static uint32_t millis() {
 }
 #endif
 
-
 using namespace gfx;
 using namespace uix;
 
@@ -52,7 +51,7 @@ static uint8_t *lcd_transfer_buffer = nullptr;
 static uint8_t *lcd_transfer_buffer2 = nullptr;
 // 0 = no flushes in progress, otherwise flushing
 static esp_lcd_panel_handle_t lcd_handle = nullptr;
-
+static volatile int flushing = 0;
 static uix::display disp;
 
 static ft6336<320, 280> touch(esp_i2c<1,21,22>::instance);
@@ -64,12 +63,17 @@ static bool lcd_flush_ready(esp_lcd_panel_io_handle_t panel_io,
                             esp_lcd_panel_io_event_data_t *edata,
                             void *user_ctx) {
     disp.flush_complete();
+    flushing = 0;
     return true;
 }
 
 // flush a bitmap to the display
 static void uix_on_flush(const rect16& bounds,
                              const void *bitmap, void* state) {
+    if(flushing) {
+        puts("Flush too soon");
+    }
+    flushing=1;
     // adjust end coordinates for a quirk of Espressif's API (add 1 to each)
     esp_lcd_panel_draw_bitmap(lcd_handle, bounds.x1, bounds.y1, bounds.x2 + 1, bounds.y2 + 1,
                               (void *)bitmap);
@@ -246,29 +250,6 @@ static TaskHandle_t drawing_task_handle;
 screen_t main_screen;
 analyzer_box_t main_analyzer;
 
-// for the touch panel
-static void lcd_on_touch(gfx::point16 *out_locations, size_t *in_out_locations_size, void *state) {
-    static uint32_t touch_ts = 0;
-    if (millis() > touch_ts + 13) {
-        touch_ts = millis();
-        touch.update();
-    }
-    // UIX supports multiple touch points. so does the FT6336 so we potentially have
-    // two values
-    *in_out_locations_size = 0;
-    uint16_t x, y;
-    if (touch.xy(&x, &y)) {
-        // printf("xy: (%d,%d)\n",x,y);
-        out_locations[0] = gfx::point16(x, y);
-        ++*in_out_locations_size;
-        if (touch.xy2(&x, &y)) {
-            // printf("xy2: (%d,%d)\n",x,y);
-            out_locations[1] = gfx::point16(x, y);
-            ++*in_out_locations_size;
-        }
-    }
-}
-
 static void processing_task(void *param);
 
 static void processing_task(void *param) {
@@ -323,6 +304,9 @@ void setup() {
     setCpuFrequencyMhz(240);
     Serial.begin(115200);
 #else
+void uix_yield_callback(void* state) {
+    taskYIELD();
+}
 extern "C" void app_main() {
 #endif
     power.initialize();
@@ -332,6 +316,9 @@ extern "C" void app_main() {
     disp.buffer_size(lcd_transfer_buffer_size);
     disp.buffer1(lcd_transfer_buffer);
     disp.buffer2(lcd_transfer_buffer2);
+#ifndef ARDUINO
+    disp.on_yield_callback(uix_yield_callback);
+#endif
     disp.on_flush_callback(uix_on_flush);
     disp.on_touch_callback(uix_on_touch);
     main_screen.dimensions({320,240});

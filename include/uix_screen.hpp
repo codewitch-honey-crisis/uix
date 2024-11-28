@@ -5,8 +5,10 @@
 namespace uix {
     class screen_base : public invalidation_tracker {
     public:
-        /// @brief The callback for wait style DMA transfers like those used with GFX
-        typedef void(*wait_flush_callback_type)(void* state);
+        /// @brief The callback used for yielding timeslices to the RTOS, if necessary
+        typedef void(*on_yield_callback_type)(void* state);
+        /// @brief The callback for wait style DMA transfers
+        typedef void(*on_wait_flush_callback_type)(void* state);
         /// @brief The flush callback for transfering data to the display.
         typedef void(*on_flush_callback_type)(const rect16& bounds,const void* bmp,void* state);
         /// @brief The touch callback for getting touch screen touch location information
@@ -65,16 +67,26 @@ namespace uix {
         /// @param callback The callback that transfers data to the display
         /// @param state A user defined state value to pass to the callback
         virtual void on_flush_callback(on_flush_callback_type callback, void* state = nullptr) = 0;
+        /// @brief Indicates the yield callback for yielding timeslices to the RTOS (if needed)
+        /// @return A pointer to the callback method
+        virtual on_yield_callback_type on_yield_callback() const;
+        /// @brief Retrieves the yield callback state
+        /// @return The user defined wait callback state
+        virtual void* on_yield_callback_state() const ;
+        /// @brief Sets the yield callback for yielding timeslices to the RTOS (if needed)
+        /// @param callback The callback that yields to the RTOS
+        /// @param state A user defined state value to pass to the callback
+        virtual void on_yield_callback(on_yield_callback_type callback, void* state = nullptr);
         /// @brief Indicates the wait callback for wait style DMA completion
         /// @return A pointer to the callback method
-        virtual wait_flush_callback_type wait_flush_callback() const = 0;
+        virtual on_wait_flush_callback_type on_wait_flush_callback() const = 0;
         /// @brief Retrieves the wait callback state
         /// @return The user defined wait callback state
-        virtual void* wait_flush_callback_state() const = 0;
+        virtual void* on_wait_flush_callback_state() const = 0;
         /// @brief Sets the wait callback
         /// @param callback The callback that tells the MCU to wait for a previous DMA transfer to complete
         /// @param state A user defined state value to pass to the callback
-        virtual void wait_flush_callback(wait_flush_callback_type callback, void* state = nullptr) = 0;
+        virtual void on_wait_flush_callback(on_wait_flush_callback_type callback, void* state = nullptr) = 0;
         /// @brief Retrieves the touch callback
         /// @return A pointer to the callback method
         virtual on_touch_callback_type on_touch_callback() const = 0;
@@ -108,7 +120,7 @@ namespace uix {
         using control_surface_type = control_surface<BitmapType>;
         using control_type = control<control_surface_type>;
         // /// @brief The callback for wait style DMA transfers like those used with GFX
-        // typedef void(*wait_flush_callback_type)(void* state);
+        // typedef void(*on_wait_flush_callback_type)(void* state);
         // /// @brief The flush callback for transfering data to the display.
         // typedef void(*on_flush_callback_type)(const rect16& bounds,const void* bmp,void* state);
         // /// @brief The touch callback for getting touch screen touch location information
@@ -139,9 +151,12 @@ namespace uix {
             m_buffer2 = rhs.m_buffer2;
             m_palette = rhs.m_palette;
             m_flushing = rhs.m_flushing;
-            m_wait_flush_callback = rhs.m_wait_flush_callback;
-            rhs.m_wait_flush_callback = nullptr;
-            m_wait_flush_callback_state = rhs.m_wait_flush_callback_state;
+            m_on_yield_callback=rhs.m_on_yield_callback;
+            rhs.m_on_yield_callback = nullptr;
+            m_on_yield_callback_state=rhs.m_on_yield_callback_state;
+            m_on_wait_flush_callback = rhs.m_on_wait_flush_callback;
+            rhs.m_on_wait_flush_callback = nullptr;
+            m_on_wait_flush_callback_state = rhs.m_on_wait_flush_callback_state;
             m_on_flush_callback = rhs.m_on_flush_callback;
             rhs.m_on_flush_callback = nullptr;
             m_on_flush_callback_state = rhs.m_on_flush_callback_state;
@@ -197,16 +212,16 @@ namespace uix {
                 if(m_buffer1==m_write_buffer) {
                     m_write_buffer = m_buffer2;
                 } else {
-                    if(m_wait_flush_callback!=nullptr) {
-                        m_wait_flush_callback(m_wait_flush_callback_state);
+                    if(m_on_wait_flush_callback!=nullptr) {
+                        m_on_wait_flush_callback(m_on_wait_flush_callback_state);
                         m_flushing=0;
                     }
                     m_write_buffer = m_buffer1;
                 }
                 return true;
             } else {
-                if(m_wait_flush_callback!=nullptr) {
-                    m_wait_flush_callback(m_wait_flush_callback_state);
+                if(m_on_wait_flush_callback!=nullptr) {
+                    m_on_wait_flush_callback(m_on_wait_flush_callback_state);
                     m_flushing=0;
                 }
             }
@@ -284,7 +299,13 @@ namespace uix {
                     m_buffer_size!=0 && 
                     m_buffer1!=nullptr &&
                     m_dirty_rects.size()!=0) {
-                
+                // wait for flush completion
+                int flushing=m_flushing;
+                if(m_buffer2==nullptr) {
+                   if(flushing) {
+                        return uix_result::success;
+                   }
+                }
                 if(m_it_dirties==nullptr) {
                     // m_it_dirties is null when not rendering
                     // so basically when it's null this is the first call
@@ -352,13 +373,7 @@ namespace uix {
                 subrect=subrect.crop((srect16)aligned);
                 // create a bitmap for the subrect over the write buffer
                 uint8_t* buf = (uint8_t*)m_write_buffer;
-                // wait for flush completion
-                int flushing;
-                if(m_buffer2==nullptr) {
-                   do {
-                        flushing = m_flushing;
-                    } while(flushing);
-                }
+                
                 //assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
                 bitmap_type bmp((size16)subrect.dimensions(),buf,m_palette);
                 // fill it with the screen color
@@ -387,11 +402,14 @@ namespace uix {
                     }
 
                 }
-            
                 if(m_buffer2!=nullptr) {
-                    do {
-                        flushing = m_flushing;
-                    } while(flushing);
+                    int flushing=m_flushing;
+                    while(flushing) {
+                        flushing=m_flushing;
+                        if(m_on_yield_callback!=nullptr) {
+                            m_on_yield_callback(m_on_yield_callback_state);
+                        }
+                    } 
                 }
                 // tell it we're flushing and run the callback
                 m_flushing=m_flushing+1;
@@ -411,8 +429,10 @@ namespace uix {
         uint8_t* m_buffer1, *m_buffer2;
         const palette_type* m_palette;
         volatile int m_flushing;
-        wait_flush_callback_type m_wait_flush_callback;
-        void* m_wait_flush_callback_state;
+        on_yield_callback_type m_on_yield_callback;
+        void* m_on_yield_callback_state;
+        on_wait_flush_callback_type m_on_wait_flush_callback;
+        void* m_on_wait_flush_callback_state;
         on_flush_callback_type m_on_flush_callback;
         void* m_on_flush_callback_state;
         dirty_rects_type m_dirty_rects;
@@ -445,8 +465,10 @@ namespace uix {
                     m_buffer2(buffer2),
                     m_palette(palette),
                     m_flushing(0),
-                    m_wait_flush_callback(nullptr),
-                    m_wait_flush_callback_state(nullptr),
+                    m_on_yield_callback(nullptr),
+                    m_on_yield_callback_state(nullptr),
+                    m_on_wait_flush_callback(nullptr),
+                    m_on_wait_flush_callback_state(nullptr),
                     m_on_flush_callback(nullptr),
                     m_on_flush_callback_state(nullptr),
                     m_dirty_rects(allocator,reallocator,deallocator),
@@ -474,8 +496,10 @@ namespace uix {
                     m_buffer2(nullptr),
                     m_palette(nullptr),
                     m_flushing(0),
-                    m_wait_flush_callback(nullptr),
-                    m_wait_flush_callback_state(nullptr),
+                    m_on_yield_callback(nullptr),
+                    m_on_yield_callback_state(nullptr),
+                    m_on_wait_flush_callback(nullptr),
+                    m_on_wait_flush_callback_state(nullptr),
                     m_on_flush_callback(nullptr),
                     m_on_flush_callback_state(nullptr),
                     m_dirty_rects(allocator,reallocator,deallocator),
@@ -679,22 +703,39 @@ namespace uix {
             m_on_flush_callback = callback;
             m_on_flush_callback_state = state;
         }
+        /// @brief Indicates the yield callback for yielding timeslices to the RTOS (if needed)
+        /// @return A pointer to the callback method
+        virtual on_yield_callback_type on_yield_callback() const override {
+            return m_on_yield_callback;
+        }
+        /// @brief Retrieves the yield callback state
+        /// @return The user defined wait callback state
+        virtual void* on_yield_callback_state() const override {
+            return m_on_yield_callback_state;
+        }
+        /// @brief Sets the yield callback for yielding timeslices to the RTOS (if needed)
+        /// @param callback The callback that yields to the RTOS
+        /// @param state A user defined state value to pass to the callback
+        virtual void on_yield_callback(on_yield_callback_type callback, void* state = nullptr) override {
+            m_on_yield_callback = callback;
+            m_on_yield_callback_state = state;
+        }
         /// @brief Indicates the wait callback for wait style DMA completion
         /// @return A pointer to the callback method
-        virtual wait_flush_callback_type wait_flush_callback() const override {
-            return m_wait_flush_callback;
+        virtual on_wait_flush_callback_type on_wait_flush_callback() const override {
+            return m_on_wait_flush_callback;
         }
         /// @brief Retrieves the wait callback state
         /// @return The user defined wait callback state
-        virtual void* wait_flush_callback_state() const override {
-            return m_wait_flush_callback_state;
+        virtual void* on_wait_flush_callback_state() const override {
+            return m_on_wait_flush_callback_state;
         }
         /// @brief Sets the wait callback
         /// @param callback The callback that tells the MCU to wait for a previous DMA transfer to complete
         /// @param state A user defined state value to pass to the callback
-        virtual void wait_flush_callback(wait_flush_callback_type callback, void* state = nullptr) override {
-            m_wait_flush_callback = callback;
-            m_wait_flush_callback_state = state;
+        virtual void on_wait_flush_callback(on_wait_flush_callback_type callback, void* state = nullptr) override {
+            m_on_wait_flush_callback = callback;
+            m_on_wait_flush_callback_state = state;
         }
         /// @brief Retrieves the touch callback
         /// @return A pointer to the callback method

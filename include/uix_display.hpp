@@ -11,8 +11,10 @@ namespace uix {
         screen_base* m_active_screen;
         screen_base::on_flush_callback_type m_on_flush_callback;
         void* m_on_flush_callback_state;
-        screen_base::wait_flush_callback_type m_wait_flush_callback;
-        void* m_wait_flush_callback_state;
+        screen_base::on_yield_callback_type m_on_yield_callback;
+        void* m_on_yield_callback_state;
+        screen_base::on_wait_flush_callback_type m_on_wait_flush_callback;
+        void* m_on_wait_flush_callback_state;
         screen_base::on_touch_callback_type m_on_touch_callback;
         void* m_on_touch_callback_state;
         size_t m_buffer_size;
@@ -41,6 +43,16 @@ namespace uix {
         /// @brief Retrieves the on_flush_callback pointer
         /// @return A pointer to the callback method
         screen_base::on_flush_callback_type on_flush_callback() const;
+        /// @brief Indicates the yield callback for yielding timeslices to the RTOS (if needed)
+        /// @return A pointer to the callback method
+        screen_base::on_yield_callback_type on_yield_callback() const;
+        /// @brief Retrieves the yield callback state
+        /// @return The user defined wait callback state
+        void* on_yield_callback_state() const ;
+        /// @brief Sets the yield callback for yielding timeslices to the RTOS (if needed)
+        /// @param callback The callback that yields to the RTOS
+        /// @param state A user defined state value to pass to the callback
+        void on_yield_callback(screen_base::on_yield_callback_type callback, void* state = nullptr);
         /// @brief Retrieves the flush callback state
         /// @return The user defined flush callback state
         void* on_flush_callback_state() const;
@@ -50,14 +62,14 @@ namespace uix {
         void on_flush_callback(screen_base::on_flush_callback_type callback, void* state = nullptr);
         /// @brief Indicates the wait callback for wait style DMA completion
         /// @return A pointer to the callback method
-        screen_base::wait_flush_callback_type wait_flush_callback() const;
+        screen_base::on_wait_flush_callback_type on_wait_flush_callback() const;
         /// @brief Retrieves the wait callback state
         /// @return The user defined wait callback state
-        void* wait_flush_callback_state() const;
+        void* on_wait_flush_callback_state() const;
         /// @brief Sets the wait callback
         /// @param callback The callback that tells the MCU to wait for a previous DMA transfer to complete
         /// @param state A user defined state value to pass to the callback
-        void wait_flush_callback(screen_base::wait_flush_callback_type callback, void* state = nullptr);
+        void on_wait_flush_callback(screen_base::on_wait_flush_callback_type callback, void* state = nullptr);
         /// @brief Retrieves the touch callback
         /// @return A pointer to the callback method
         screen_base::on_touch_callback_type on_touch_callback() const;
