@@ -20,7 +20,9 @@
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_vendor.h>
 // config for various devices
+#define LCD_IMPLEMENTATION
 #include "lcd_config.h"
+#include "lcd_init.h"
 #ifdef M5STACK_CORE2
 // cross platform i2c init codewitch-honey-crisis/htcw_esp_i2c
 #include <esp_i2c.hpp>
@@ -31,12 +33,10 @@
 // graphics library codewitch-honey-crisis/htcw_gfx
 #include <gfx.hpp>
 #include <uix.hpp>
-#define SVG_SVG_IMPLEMENTATION
-#include "assets/svg_svg.h"
+
 #define ARCHITECTS_DAUGHTER_IMPLEMENTATION
 #include "assets/architects_daughter.h"
-#define TERMINAL_IMPLEMENTATION
-#include "assets/terminal.h"
+
 // import the htcw_gfx graphics library namespace
 using namespace gfx;
 // import the htcw_uix UI/UX library namespace
@@ -61,12 +61,10 @@ using color_t = color<typename fb_t::pixel_type>;
 
 // lcd data
 // This works out to be 32KB - the max DMA transfer size
-static const size_t lcd_transfer_buffer_size = 32*1024;
+static const size_t lcd_transfer_buffer_size = 16*1024;
 // for sending data to the display
 static uint8_t *lcd_transfer_buffer = nullptr;
 static uint8_t *lcd_transfer_buffer2 = nullptr;
-// 0 = no flushes in progress, otherwise flushing
-static esp_lcd_panel_handle_t lcd_handle = nullptr;
 
 static uix::display disp;
 
@@ -82,96 +80,10 @@ static bool lcd_flush_ready(esp_lcd_panel_io_handle_t panel_io,
 static void uix_on_flush(const rect16& bounds,
                              const void *bitmap, void* state) {
     // adjust end coordinates for a quirk of Espressif's API (add 1 to each)
-    esp_lcd_panel_draw_bitmap(lcd_handle, bounds.x1, bounds.y1, bounds.x2 + 1, bounds.y2 + 1,
+    lcd_panel_draw_bitmap(bounds.x1, bounds.y1, bounds.x2 , bounds.y2 ,
                               (void *)bitmap);
 }
-// initialize the screen using the esp panel API
-// htcw_gfx no longer has intrinsic display driver support
-// for performance and flash size reasons
-// here we use the ESP LCD Panel API for it
-static void lcd_panel_init() {
-#ifdef LCD_PIN_NUM_BCKL
-    if(LCD_PIN_NUM_BCKL>-1) {
-        gpio_set_direction((gpio_num_t)LCD_PIN_NUM_BCKL, GPIO_MODE_OUTPUT);
-        gpio_set_level((gpio_num_t)4, LCD_BCKL_OFF_LEVEL);
-    }
-#endif
-    // configure the SPI bus
-    spi_bus_config_t buscfg;
-    memset(&buscfg, 0, sizeof(buscfg));
-    buscfg.sclk_io_num = LCD_PIN_NUM_CLK;
-    buscfg.mosi_io_num = LCD_PIN_NUM_MOSI;
-    buscfg.miso_io_num = -1;
-    buscfg.quadwp_io_num = -1;
-    buscfg.quadhd_io_num = -1;
-    // declare enough space for the transfer buffers + 8 bytes SPI DMA overhead
-    buscfg.max_transfer_sz = lcd_transfer_buffer_size + 8;
-
-    // Initialize the SPI bus on VSPI (SPI3)
-    spi_bus_initialize(LCD_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
-
-    esp_lcd_panel_io_handle_t io_handle = NULL;
-    esp_lcd_panel_io_spi_config_t io_config;
-    memset(&io_config, 0, sizeof(io_config));
-    io_config.dc_gpio_num = LCD_PIN_NUM_DC;
-    io_config.cs_gpio_num = LCD_PIN_NUM_CS;
-    io_config.pclk_hz = LCD_PIXEL_CLOCK_HZ;
-    io_config.lcd_cmd_bits = 8;
-    io_config.lcd_param_bits = 8;
-    io_config.spi_mode = 0;
-    io_config.trans_queue_depth = 10;
-    io_config.on_color_trans_done = lcd_flush_ready;
-    // Attach the LCD to the SPI bus
-    esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_SPI_HOST, &io_config,
-                             &io_handle);
-
-    lcd_handle = NULL;
-    esp_lcd_panel_dev_config_t panel_config;
-    memset(&panel_config, 0, sizeof(panel_config));
-    panel_config.reset_gpio_num = LCD_PIN_NUM_RST;
-    if(LCD_COLOR_SPACE==ESP_LCD_COLOR_SPACE_RGB) {
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-        panel_config.rgb_endian = LCD_RGB_ENDIAN_RGB;
-#else
-        panel_config.color_space = ESP_LCD_COLOR_SPACE_RGB;
-#endif
-    } else {
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-        panel_config.rgb_endian = LCD_RGB_ENDIAN_BGR;
-#else
-        panel_config.color_space = ESP_LCD_COLOR_SPACE_BGR;
-#endif
-    }
-    panel_config.bits_per_pixel = LCD_BIT_DEPTH;
-
-    // Initialize the LCD configuration
-    if (ESP_OK !=
-        LCD_PANEL(io_handle, &panel_config, &lcd_handle)) {
-        printf("Error initializing LCD panel.\n");
-        while (1) vTaskDelay(5);
-    }
-
-    // Reset the display
-    esp_lcd_panel_reset(lcd_handle);
-
-    // Initialize LCD panel
-    esp_lcd_panel_init(lcd_handle);
-    //  Swap x and y axis (Different LCD screens may need different options)
-    esp_lcd_panel_swap_xy(lcd_handle, LCD_SWAP_XY);
-    esp_lcd_panel_set_gap(lcd_handle, LCD_GAP_X, LCD_GAP_Y);
-    esp_lcd_panel_mirror(lcd_handle, LCD_MIRROR_X, LCD_MIRROR_Y);
-    esp_lcd_panel_invert_color(lcd_handle, LCD_INVERT_COLOR);
-    // Turn on the screen
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-    esp_lcd_panel_disp_on_off(lcd_handle, true);
-#else
-    esp_lcd_panel_disp_off(lcd_handle, false);
-#endif
-#ifdef LCD_PIN_NUM_BCKL
-    // Turn on backlight (Different LCD screens may need different levels)
-    if(LCD_PIN_NUM_BCKL>-1) gpio_set_level((gpio_num_t)4, LCD_BCKL_ON_LEVEL);
-#endif
-
+void lcd_transfer_buffers_init() {
     // initialize the transfer buffers
     lcd_transfer_buffer = (uint8_t *)malloc(lcd_transfer_buffer_size);
     if (lcd_transfer_buffer == nullptr) {
@@ -179,6 +91,7 @@ static void lcd_panel_init() {
         while (1) vTaskDelay(5);
     }
     memset(lcd_transfer_buffer, 0, lcd_transfer_buffer_size);
+#ifdef LCD_DMA
     // initialize the transfer buffers
     lcd_transfer_buffer2 = (uint8_t *)malloc(lcd_transfer_buffer_size);
     if (lcd_transfer_buffer2 == nullptr) {
@@ -186,6 +99,9 @@ static void lcd_panel_init() {
         while (1) vTaskDelay(5);
     }
     memset(lcd_transfer_buffer2, 0, lcd_transfer_buffer_size);
+#else
+    lcd_transfer_buffer2 = nullptr;
+#endif
 }
 
 static void uix_on_touch(point16* out_locations,size_t* in_out_locations_size,void* state) {
@@ -346,6 +262,9 @@ void rgb_hsl_switch_on_value_chaged(bool value, void* state) {
 void setup() {
     Serial.begin(115200);
 #else
+void uix_on_yield(void* state) {
+    taskYIELD();
+}
 void loop();
 static void loop_task(void* arg) {
     while(1) {
@@ -365,8 +284,9 @@ extern "C" void app_main() {
     // initialize the AXP192 in the core 2
     power.initialize();
 #endif
+    lcd_transfer_buffers_init();
     // initialize the LCD
-    lcd_panel_init();
+    lcd_panel_init(lcd_transfer_buffer_size,lcd_flush_ready);
     // start the touch
     touch.initialize();
     disp.buffer_size(lcd_transfer_buffer_size);
@@ -374,6 +294,9 @@ extern "C" void app_main() {
     disp.buffer2(lcd_transfer_buffer2);
     disp.on_flush_callback(uix_on_flush);
     disp.on_touch_callback(uix_on_touch);
+#ifndef ARDUINO
+    disp.on_yield_callback(uix_on_yield);
+#endif
     main_screen.dimensions({320,240});
     main_screen.background_color(color_t::white);
       text_info ti;
