@@ -402,25 +402,43 @@ namespace uix {
                     }
 
                 }
-                if(m_buffer2!=nullptr) {
-                    int flushing=m_flushing;
-                    while(flushing) {
-                        flushing=m_flushing;
-                        if(m_on_yield_callback!=nullptr) {
-                            m_on_yield_callback(m_on_yield_callback_state);
-                        }
-                    } 
+
+            //
+            // FREEZING ISSUE UNDER ESP-IDF - this code is not entirely stable
+            //
+
+            if(m_buffer2!=nullptr) {
+                int flushing=m_flushing;
+                int max_check=10000;
+                while(flushing && --max_check>0) {
+                    flushing=m_flushing;
+                    if(m_on_yield_callback!=nullptr) {
+                        m_on_yield_callback(m_on_yield_callback_state);
+                    }
+                } 
+                if(max_check<=0) {
+                    //puts("FLUSH CHECK LIMIT EXCEEDED");
+                    return uix_result::io_error;
                 }
-                // the above may return immediately before the 
-                // transfer is complete. To take advantage of
-                // this, rather than wait, we swap out to a
-                // second buffer and continue drawing while
-                // the transfer is in progress.
-                switch_buffers();
-                // tell it we're flushing and run the callback
-                m_flushing=1;
-                m_on_flush_callback((rect16)subrect,bmp.begin(),m_on_flush_callback_state);
-                
+            }
+            // switch out m_write_buffer so if it points to m_buffer1 it now points to m_buffer2 and vice versa.
+            // if there's just one buffer, we don't change anything.
+            switch_buffers();
+            // tell it we're flushing and run the callback
+            m_flushing=1;
+            // initiate the DMA transfer on whatever was *previously* m_write_buffer before switch_buffers was called.
+            m_on_flush_callback((rect16)subrect,bmp.begin(),m_on_flush_callback_state); // initiate DMA transfer
+            // the above may return immediately before the 
+            // transfer is complete. To take advantage of
+            // this, rather than wait, we swap out to a
+            // second buffer and continue drawing while
+            // the transfer is in progress. That's what
+            // switch_buffers() is doing beforehand just above
+            
+            //
+            //  END ISSUE
+            //
+            
             }
             return uix_result::success;
         }
@@ -672,10 +690,7 @@ namespace uix {
         }
         /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
         virtual void flush_complete() override {
-            if(m_flushing==0) {
-                return;
-            }
-            m_flushing=m_flushing-1;
+            m_flushing=0;
         }
         /// @brief sets the palette for the screen
         /// @param value a pointer to the palette instance
