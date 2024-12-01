@@ -69,14 +69,14 @@ namespace uix {
         virtual void on_flush_callback(on_flush_callback_type callback, void* state = nullptr) = 0;
         /// @brief Indicates the yield callback for yielding timeslices to the RTOS (if needed)
         /// @return A pointer to the callback method
-        virtual on_yield_callback_type on_yield_callback() const;
+        virtual on_yield_callback_type on_yield_callback() const=0;
         /// @brief Retrieves the yield callback state
         /// @return The user defined wait callback state
-        virtual void* on_yield_callback_state() const ;
+        virtual void* on_yield_callback_state() const =0;
         /// @brief Sets the yield callback for yielding timeslices to the RTOS (if needed)
         /// @param callback The callback that yields to the RTOS
         /// @param state A user defined state value to pass to the callback
-        virtual void on_yield_callback(on_yield_callback_type callback, void* state = nullptr);
+        virtual void on_yield_callback(on_yield_callback_type callback, void* state = nullptr)=0;
         /// @brief Indicates the wait callback for wait style DMA completion
         /// @return A pointer to the callback method
         virtual on_wait_flush_callback_type on_wait_flush_callback() const = 0;
