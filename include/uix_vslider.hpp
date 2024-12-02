@@ -34,7 +34,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
     uint16_t m_bar_width;
     size16 m_bar_radiuses;
     uix_orientation m_orientation;
-    uint16_t m_minimum, m_maximum, m_value, m_render_value;
+    uint16_t m_minimum, m_maximum, m_value;
     on_value_changed_callback_type m_on_value_changed_cb;
     void* m_on_value_changed_state;
     on_released_callback_type m_on_released_cb;
@@ -54,7 +54,6 @@ class vslider : public canvas_control<ControlSurfaceType> {
         m_minimum = rhs.m_minimum;
         m_maximum = rhs.m_maximum;
         m_value = rhs.m_value;
-        m_render_value=rhs.m_render_value;
         m_on_value_changed_cb = rhs.m_on_value_changed_cb;
         m_on_value_changed_state = rhs.m_on_value_changed_state;
         m_on_released_cb = rhs.m_on_released_cb;
@@ -401,19 +400,18 @@ class vslider : public canvas_control<ControlSurfaceType> {
         m_on_released_cb = callback;
         m_on_released_state = state;
     }
-protected:
     /// @brief Called before the control is rendered.
     virtual void on_before_paint() override {
         validate_values();
-        m_render_value = m_value;
     }
+protected:
     /// @brief Called when the slider is painted
     /// @param destination The draw destination
     /// @param clip The clipping rectangle
     virtual void on_paint(gfx::canvas& destination, const srect16& clip) override {
         draw_bar(destination);
         const uint16_t range = (m_maximum - m_minimum) + 1;
-        const uint16_t offset_value = m_render_value - m_minimum;
+        const uint16_t offset_value = m_value - m_minimum;
         //const float mult = 1.f / (float)range;
         float radius;
         if(m_orientation==uix_orientation::horizontal) {

@@ -5,8 +5,6 @@
 namespace uix {
     class screen_base : public invalidation_tracker {
     public:
-        /// @brief The callback used for yielding timeslices to the RTOS, if necessary
-        typedef void(*on_yield_callback_type)(void* state);
         /// @brief The callback for wait style DMA transfers
         typedef void(*on_wait_flush_callback_type)(void* state);
         /// @brief The flush callback for transfering data to the display.
@@ -67,16 +65,6 @@ namespace uix {
         /// @param callback The callback that transfers data to the display
         /// @param state A user defined state value to pass to the callback
         virtual void on_flush_callback(on_flush_callback_type callback, void* state = nullptr) = 0;
-        /// @brief Indicates the yield callback for yielding timeslices to the RTOS (if needed)
-        /// @return A pointer to the callback method
-        virtual on_yield_callback_type on_yield_callback() const=0;
-        /// @brief Retrieves the yield callback state
-        /// @return The user defined wait callback state
-        virtual void* on_yield_callback_state() const =0;
-        /// @brief Sets the yield callback for yielding timeslices to the RTOS (if needed)
-        /// @param callback The callback that yields to the RTOS
-        /// @param state A user defined state value to pass to the callback
-        virtual void on_yield_callback(on_yield_callback_type callback, void* state = nullptr)=0;
         /// @brief Indicates the wait callback for wait style DMA completion
         /// @return A pointer to the callback method
         virtual on_wait_flush_callback_type on_wait_flush_callback() const = 0;
@@ -151,9 +139,6 @@ namespace uix {
             m_buffer2 = rhs.m_buffer2;
             m_palette = rhs.m_palette;
             m_flushing = rhs.m_flushing;
-            m_on_yield_callback=rhs.m_on_yield_callback;
-            rhs.m_on_yield_callback = nullptr;
-            m_on_yield_callback_state=rhs.m_on_yield_callback_state;
             m_on_wait_flush_callback = rhs.m_on_wait_flush_callback;
             rhs.m_on_wait_flush_callback = nullptr;
             m_on_wait_flush_callback_state = rhs.m_on_wait_flush_callback_state;
@@ -172,6 +157,8 @@ namespace uix {
             m_on_touch_callback = rhs.m_on_touch_callback;
             rhs.m_on_touch_callback = nullptr;
             m_on_touch_callback_state = rhs.m_on_touch_callback_state;
+            m_flush_pending = rhs.m_flush_pending;
+            m_flush_pending_bounds = rhs.m_flush_pending_bounds;
         }
        
         template<typename T>
@@ -244,6 +231,16 @@ namespace uix {
             return target;
         }
         uix_result update_impl() {
+            // we had to early exit the last time
+            if(m_flush_pending) {
+                m_flush_pending = false;
+                uint8_t* buf = (uint8_t*)m_write_buffer;
+                switch_buffers();
+                bitmap_type bmp(m_flush_pending_bounds.dimensions(),buf,m_palette);
+                // initiate the DMA transfer on whatever was *previously* m_write_buffer before switch_buffers was called.
+                m_on_flush_callback(m_flush_pending_bounds,bmp.begin(),m_on_flush_callback_state); // initiate DMA transfer
+                
+            }
             // if not rendering, process touch
             if(m_it_dirties==nullptr&& m_on_touch_callback!=nullptr) {
                 point16 locs[5];
@@ -403,23 +400,14 @@ namespace uix {
 
                 }
 
-            //
-            // FREEZING ISSUE UNDER ESP-IDF - this code is not entirely stable
-            //
 
             if(m_buffer2!=nullptr) {
                 int flushing=m_flushing;
-                int max_check=10000;
-                while(flushing && --max_check>0) {
-                    flushing=m_flushing;
-                    if(m_on_yield_callback!=nullptr) {
-                        m_on_yield_callback(m_on_yield_callback_state);
-                    }
+                if(flushing) {
+                    m_flush_pending_bounds = (rect16)subrect;
+                    m_flush_pending = true;
+                    return uix_result::success;
                 } 
-                if(max_check<=0) {
-                    //puts("FLUSH CHECK LIMIT EXCEEDED");
-                    return uix_result::io_error;
-                }
             }
             // switch out m_write_buffer so if it points to m_buffer1 it now points to m_buffer2 and vice versa.
             // if there's just one buffer, we don't change anything.
@@ -435,10 +423,6 @@ namespace uix {
             // the transfer is in progress. That's what
             // switch_buffers() is doing beforehand just above
             
-            //
-            //  END ISSUE
-            //
-            
             }
             return uix_result::success;
         }
@@ -448,8 +432,6 @@ namespace uix {
         uint8_t* m_buffer1, *m_buffer2;
         const palette_type* m_palette;
         volatile int m_flushing;
-        on_yield_callback_type m_on_yield_callback;
-        void* m_on_yield_callback_state;
         on_wait_flush_callback_type m_on_wait_flush_callback;
         void* m_on_wait_flush_callback_state;
         on_flush_callback_type m_on_flush_callback;
@@ -463,6 +445,8 @@ namespace uix {
         on_touch_callback_type m_on_touch_callback;
         void* m_on_touch_callback_state;
         typename controls_type::iterator m_last_touched;
+        bool m_flush_pending;
+        rect16 m_flush_pending_bounds;
     public:
         /// @brief Constructs a screen given a buffer size, and one or two buffers, plus an optional palette
         /// @param dimensions The width and height of the screen as a ssize16
@@ -484,8 +468,6 @@ namespace uix {
                     m_buffer2(buffer2),
                     m_palette(palette),
                     m_flushing(0),
-                    m_on_yield_callback(nullptr),
-                    m_on_yield_callback_state(nullptr),
                     m_on_wait_flush_callback(nullptr),
                     m_on_wait_flush_callback_state(nullptr),
                     m_on_flush_callback(nullptr),
@@ -498,7 +480,8 @@ namespace uix {
                     m_bmp_y(0),
                     m_on_touch_callback(nullptr),
                     m_on_touch_callback_state(nullptr),
-                    m_last_touched(nullptr)
+                    m_last_touched(nullptr),
+                    m_flush_pending(false)
                 {
         }
         /// @brief Constructs an uninitialized screen instance
@@ -515,8 +498,6 @@ namespace uix {
                     m_buffer2(nullptr),
                     m_palette(nullptr),
                     m_flushing(0),
-                    m_on_yield_callback(nullptr),
-                    m_on_yield_callback_state(nullptr),
                     m_on_wait_flush_callback(nullptr),
                     m_on_wait_flush_callback_state(nullptr),
                     m_on_flush_callback(nullptr),
@@ -529,7 +510,8 @@ namespace uix {
                     m_bmp_y(0),
                     m_on_touch_callback(nullptr),
                     m_on_touch_callback_state(nullptr),
-                    m_last_touched(nullptr)
+                    m_last_touched(nullptr),
+                    m_flush_pending(false)
                 {
         }
         /// @brief Moves a screen
@@ -718,23 +700,6 @@ namespace uix {
         virtual void on_flush_callback(on_flush_callback_type callback, void* state = nullptr) override {
             m_on_flush_callback = callback;
             m_on_flush_callback_state = state;
-        }
-        /// @brief Indicates the yield callback for yielding timeslices to the RTOS (if needed)
-        /// @return A pointer to the callback method
-        virtual on_yield_callback_type on_yield_callback() const override {
-            return m_on_yield_callback;
-        }
-        /// @brief Retrieves the yield callback state
-        /// @return The user defined wait callback state
-        virtual void* on_yield_callback_state() const override {
-            return m_on_yield_callback_state;
-        }
-        /// @brief Sets the yield callback for yielding timeslices to the RTOS (if needed)
-        /// @param callback The callback that yields to the RTOS
-        /// @param state A user defined state value to pass to the callback
-        virtual void on_yield_callback(on_yield_callback_type callback, void* state = nullptr) override {
-            m_on_yield_callback = callback;
-            m_on_yield_callback_state = state;
         }
         /// @brief Indicates the wait callback for wait style DMA completion
         /// @return A pointer to the callback method

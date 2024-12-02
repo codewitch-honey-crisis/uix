@@ -80,12 +80,13 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     
     }
     void draw_backing(gfx::canvas& dst) {
+        float radius;
         rectf bounds;
         if (m_orientation == uix_orientation::horizontal) {
-            //radius = this->dimensions().height * .05f;
+            radius = this->dimensions().height * .05f;
             bounds = rectf(0, 0, this->dimensions().width - 1 ,this->dimensions().height - 1);
         } else {
-            //radius = this->dimensions().width * .05f;
+            radius = this->dimensions().width * .05f;
             bounds = rectf(0, 0, this->dimensions().width - 1, this->dimensions().height - 1);
         }
         gfx::canvas_style si=dst.style();
@@ -320,11 +321,11 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     /// @param clip The clipping rectangle
     virtual void on_paint(gfx::canvas& destination, const srect16& clip) override {
         draw_backing(destination);
-        //const uint16_t range = 1;
-        //const uint16_t offset_value = m_value;
-        //const float mult = (float)offset_value / (float)range;
-        //int16_t adj;
-//        float radius;
+        const uint16_t range = 1;
+        const uint16_t offset_value = m_value;
+        const float mult = (float)offset_value / (float)range;
+        int16_t adj;
+        float radius;
 
         if (m_orientation == uix_orientation::horizontal) {
             float radiusx2 = this->bounds().height();
