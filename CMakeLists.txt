@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
-
+include(FetchContent)
 FetchContent_Declare(htcw_gfx
     GIT_REPOSITORY https://github.com/codewitch-honey-crisis/gfx.git
     GIT_TAG 2.0.2
