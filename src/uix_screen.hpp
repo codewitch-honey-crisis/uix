@@ -671,6 +671,9 @@ namespace uix {
             return uix_result::out_of_memory;
         }
         /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
+#ifdef IRAM_ATTR
+IRAM_ATTR
+#endif
         virtual void flush_complete() override {
             m_flushing=0;
         }
