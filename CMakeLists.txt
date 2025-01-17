@@ -15,14 +15,11 @@ FetchContent_Declare(htcw_gfx
 
 FetchContent_MakeAvailable(htcw_gfx)
 
-add_library(htcw_uix src/uix_display.cpp)
-target_include_directories(htcw_uix INTERFACE
-    "${PROJECT_SOURCE_DIR}/include"
-    "${PROJECT_BINARY_DIR}"
-)
+add_library(htcw_uix src/source/uix_display.cpp)
+
 target_link_libraries(htcw_uix htcw_gfx htcw_bits htcw_io htcw_data htcw_ml)
 
 target_include_directories(htcw_uix PUBLIC
-"${PROJECT_SOURCE_DIR}/include"
+"${PROJECT_SOURCE_DIR}"
 "${PROJECT_SOURCE_DIR}/src"
 "${PROJECT_BINARY_DIR}")
