@@ -110,6 +110,7 @@ class screen_base : public invalidation_tracker {
     /// @brief Indicates if the screen has any dirty regions to update and flush
     /// @return True if the screen needs updating, otherwise false
     virtual bool dirty() const = 0;
+    virtual bool flush_pending() const = 0;
 };
 /// @brief Represents a screen
 /// @tparam BitmapType The type of backing bitmap used over the transfer buffer.
@@ -787,6 +788,9 @@ class screen_ex final : public screen_base {
         m_on_touch_callback = callback;
         m_on_touch_callback_state = state;
     }
+    virtual bool flush_pending() const {
+        return m_flush_pending;
+    }
     /// @brief Updates the screen, processing touch input and updating and
     /// flushing invalid portions of the screen to the display
     /// @param full True to fully update the display, false to only update one
@@ -799,12 +803,16 @@ class screen_ex final : public screen_base {
         }
         while (full && m_it_dirties != nullptr) {
             res = update_impl();
+            if(m_flush_pending) {
+                return uix_result::success;
+            }
             if (res != uix_result::success) {
                 return res;
             }
         }
         return uix_result::success;
     }
+
     /// @brief Indicates if the screen has any dirty regions to update and flush
     /// @return True if the screen needs updating, otherwise false
     virtual bool dirty() const override {

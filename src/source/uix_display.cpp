@@ -72,6 +72,12 @@ namespace uix {
                 m_active_screen->invalidate();
             }
         }
+        bool display::flush_pending() const {
+            if(m_active_screen!=nullptr) {
+                return m_active_screen->flush_pending();
+            }
+            return false;
+        }
 #ifdef IRAM_ATTR
 IRAM_ATTR
 #endif

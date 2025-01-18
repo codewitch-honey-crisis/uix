@@ -74,6 +74,7 @@ namespace uix {
         void active_screen(screen_base& value);
         /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
         void flush_complete();
+        bool flush_pending() const;
         uix_result update(bool full = true);
         /// @brief Indicates if the screen has any dirty regions to update and flush
         /// @return True if the screen needs updating, otherwise false
