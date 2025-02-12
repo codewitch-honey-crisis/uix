@@ -4,6 +4,8 @@
 #include "uix_screen.hpp"
 #include "uix_label.hpp"
 #include "uix_painter.hpp"
+#include "uix_qrcode.hpp"
+#include "uix_barcode.hpp"
 #include "uix_canvas_control.hpp"
 #include "uix_vbutton.hpp"
 #include "uix_vslider.hpp"
