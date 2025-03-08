@@ -24,7 +24,6 @@ class screen_base : public invalidation_tracker {
     /// @brief Marks all dirty rectangles as clean
     /// @return The result of the operation
     virtual uix_result validate_all() = 0;
-
     /// @brief Indicates the dimensions of the screen
     /// @return A ssize16 indicating the width and height.
     virtual ssize16 dimensions() const = 0;
