@@ -844,7 +844,7 @@ namespace uix {
         }
         /// @brief Indicates the qr version
         /// @return The version of the qr code
-        const int8_t version() const {
+        int8_t version() const {
             return m_version;
         }
         /// @brief Sets the version of the qr code
@@ -856,7 +856,7 @@ namespace uix {
         }
         /// @brief Indicates the error correction level of the qr
         /// @return The error correction level of the qr code
-        const qr_ecc ecc() const {
+        qr_ecc ecc() const {
             return m_ecc;
         }
         /// @brief Sets the error correction level of the qr code

@@ -220,7 +220,7 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     }
     /// @brief Sets the radiuses of the knob
     /// @param value The knob radiuses
-    void knob_radiuses(sizef value) {
+    void knob_radiuses(size16 value) {
         m_knob_radiuses = value;
         this->invalidate();
     }
