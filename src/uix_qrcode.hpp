@@ -224,7 +224,7 @@ namespace uix {
 
                 for (int8_t i = -4; i <= 4; i++) {
                     for (int8_t j = -4; j <= 4; j++) {
-                        uint8_t dist = max(abs(i), abs(j));  // Chebyshev/infinity norm
+                        uint8_t dist = gfx::math::max(abs(i), abs(j));  // Chebyshev/infinity norm
                         int16_t xx = x + j, yy = y + i;
                         if (0 <= xx && xx < size && 0 <= yy && yy < size) {
                             setFunctionModule(modules, isFunction, xx, yy, dist != 2 && dist != 4);
@@ -237,7 +237,7 @@ namespace uix {
             static void drawAlignmentPattern(BitBucket *modules, BitBucket *isFunction, uint8_t x, uint8_t y) {
                 for (int8_t i = -2; i <= 2; i++) {
                     for (int8_t j = -2; j <= 2; j++) {
-                        setFunctionModule(modules, isFunction, x + j, y + i, max(abs(i), abs(j)) != 1);
+                        setFunctionModule(modules, isFunction, x + j, y + i, gfx::math::max(abs(i), abs(j)) != 1);
                     }
                 }
             }
