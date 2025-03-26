@@ -57,6 +57,9 @@ namespace uix {
         }
         void display::active_screen(screen_base& value) {
             if(m_active_screen!=nullptr) {
+                if(m_active_screen->flushing()) {
+                    m_active_screen->flush_complete();
+                }
                 m_active_screen->on_flush_callback(nullptr);
                 m_active_screen->on_wait_flush_callback(nullptr);
                 m_active_screen->on_touch_callback(nullptr);
@@ -75,6 +78,12 @@ namespace uix {
         bool display::flush_pending() const {
             if(m_active_screen!=nullptr) {
                 return m_active_screen->flush_pending();
+            }
+            return false;
+        }
+        bool display::flushing() const {
+            if(m_active_screen!=nullptr) {
+                return m_active_screen->flushing();
             }
             return false;
         }
