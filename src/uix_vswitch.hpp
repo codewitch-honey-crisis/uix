@@ -1,5 +1,5 @@
-#ifndef HTCW_UIX_SVG_SWITCH
-#define HTCW_UIX_SVG_SWITCH
+#ifndef HTCW_UIX_VSWITCH
+#define HTCW_UIX_VSWITCH
 #include "uix_core.hpp"
 #include "uix_canvas_control.hpp"
 namespace uix {
@@ -80,13 +80,10 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     
     }
     void draw_backing(gfx::canvas& dst) {
-        float radius;
         rectf bounds;
         if (m_orientation == uix_orientation::horizontal) {
-            radius = this->dimensions().height * .05f;
             bounds = rectf(0, 0, this->dimensions().width - 1 ,this->dimensions().height - 1);
         } else {
-            radius = this->dimensions().width * .05f;
             bounds = rectf(0, 0, this->dimensions().width - 1, this->dimensions().height - 1);
         }
         gfx::canvas_style si=dst.style();
@@ -321,12 +318,7 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     /// @param clip The clipping rectangle
     virtual void on_paint(gfx::canvas& destination, const srect16& clip) override {
         draw_backing(destination);
-        const uint16_t range = 1;
-        const uint16_t offset_value = m_value;
-        const float mult = (float)offset_value / (float)range;
-        int16_t adj;
-        float radius;
-
+        
         if (m_orientation == uix_orientation::horizontal) {
             float radiusx2 = this->bounds().height();
             spoint16 pt(value() *(this->dimensions().width-radiusx2), 0);
@@ -360,4 +352,4 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     }
 };
 }  // namespace uix
-#endif  // HTCW_UIX_SVG_SWITCH
+#endif  // HTCW_UIX_VSWITCH
