@@ -36,8 +36,8 @@ namespace uix {
             static constexpr const int EAN13_MODULE = 7;
             static constexpr const int EAN13_DIGITS = 12;
             static constexpr const int EAN13_WIDTH = 13;
-            static constexpr const int PARITY_ODD = 0;
-            static constexpr const int PARITY_EVEN = 1;
+            static constexpr const int PARITY_ODD_ = 0;
+            static constexpr const int PARITY_EVEN_ = 1;
             static constexpr const bool quiet_zone[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
             static constexpr const bool lead_trailer[] = {1, 0, 1};
             static constexpr const bool separator[] = {0, 1, 0, 1, 0};

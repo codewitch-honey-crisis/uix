@@ -243,8 +243,8 @@ namespace uix {
                     return result;
                 }
                 
-                result.length =  gfx::math::max(this->m_rect.x2-this->m_rect.x1+1-location.x,0)*pixel_type::byte_alignment;
-                result.length = gfx::math::min(result.length,(this->m_bitmap.dimensions().width-location.x)*pixel_type::byte_alignment);
+                result.length =  gfx::math::max_(this->m_rect.x2-this->m_rect.x1+1-location.x,0)*pixel_type::byte_alignment;
+                result.length = gfx::math::min_(result.length,(this->m_bitmap.dimensions().width-location.x)*pixel_type::byte_alignment);
                 return result;
             }
             virtual gfx::gfx_span span(point16 location) const override {
@@ -257,8 +257,8 @@ namespace uix {
                     return result;
                 }
                 
-                result.length =  gfx::math::max(this->m_rect.x2-this->m_rect.x1+1-location.x,0)*pixel_type::byte_alignment;
-                result.length = gfx::math::min(result.length,(this->m_bitmap.dimensions().width-location.x)*pixel_type::byte_alignment);
+                result.length =  gfx::math::max_(this->m_rect.x2-this->m_rect.x1+1-location.x,0)*pixel_type::byte_alignment;
+                result.length = gfx::math::min_(result.length,(this->m_bitmap.dimensions().width-location.x)*pixel_type::byte_alignment);
                 return result;
 
             
