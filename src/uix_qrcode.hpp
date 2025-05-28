@@ -338,7 +338,7 @@ namespace uix {
                     }
                     
                     uint8_t alignPositionIndex = alignCount - 1;
-                    uint8_t alignPosition[1024];
+                    uint8_t alignPosition[256];
                     
                     alignPosition[0] = 6;
                     
@@ -618,10 +618,10 @@ namespace uix {
                 
                 uint8_t shortDataBlockLen = shortBlockLen - blockEccLen;
                 
-                uint8_t result[1024];
+                uint8_t result[256];
                 memset(result, 0, sizeof(result));
                 
-                uint8_t coeff[1024];
+                uint8_t coeff[256];
                 rs_init(blockEccLen, coeff);
                 
                 uint16_t offset = 0;
@@ -697,7 +697,7 @@ namespace uix {
                 uint16_t dataCapacity = moduleCount / 8 - NUM_ERROR_CORRECTION_CODEWORDS[eccFormatBits][version - 1];
                 
                 BitBucket codewords;
-                uint8_t codewordBytes[1024];
+                uint8_t codewordBytes[256];
                 bb_initBuffer(&codewords, codewordBytes, (int32_t)sizeof(codewordBytes));
                 
                 // Place the data code words into the buffer
@@ -721,7 +721,7 @@ namespace uix {
                 bb_initGrid(&modulesGrid, modules, size);
                 
                 BitBucket isFunctionGrid;
-                uint8_t isFunctionGridBytes[1024];
+                uint8_t isFunctionGridBytes[256];
                 bb_initGrid(&isFunctionGrid, isFunctionGridBytes, size);
                 
                 // Draw function patterns, draw all codewords, do masking
