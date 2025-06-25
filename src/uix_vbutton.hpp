@@ -193,6 +193,11 @@ public:
         m_text_info.ttf_font = nullptr;
         m_text_info.encoding = &gfx::text_encoding::utf8;
     }
+    /// @brief Indicates whether or not the button is pressed
+    /// @return True if pressed, otherwise false
+    bool pressed() const {
+        return m_pressed;
+    }
     /// @brief Indicates the raw button text
     /// @return The text of the button
     gfx::text_handle text() const {
