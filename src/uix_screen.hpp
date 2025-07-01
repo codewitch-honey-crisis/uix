@@ -10,7 +10,7 @@ class screen_base : public invalidation_tracker {
     typedef void (*on_wait_flush_callback_type)(void* state);
     /// @brief The flush callback for transfering data to the display.
     typedef void (*on_flush_callback_type)(const rect16& bounds,
-                                           const void* bmp, void* state);
+                                           void* bmp, void* state);
     /// @brief The touch callback for getting touch screen touch location
     /// information
     typedef void (*on_touch_callback_type)(point16* out_locations,
@@ -262,17 +262,20 @@ class screen_ex final : public screen_base {
             if(m_flushing) {
                 return uix_result::success;
             }
+            // Serial.println("Initiating pending flush");
             m_flushing = 1;
             m_flush_pending = false;
             uint8_t* buf = (uint8_t*)m_write_buffer;
             switch_buffers();
-            bitmap_type bmp(m_flush_pending_bounds.dimensions(), buf,
-                            m_palette);
             // initiate the DMA transfer on whatever was *previously*
             // m_write_buffer before switch_buffers was called.
+            //delay(50);
             m_on_flush_callback(
-                m_flush_pending_bounds, bmp.begin(),
+                m_flush_pending_bounds, buf,
                 m_on_flush_callback_state);  // initiate DMA transfer
+            // Serial.println("Pending flush started. Early out");
+            return uix_result::success;
+
         }
         // if not rendering, process touch
         if (m_it_dirties == nullptr && m_on_touch_callback != nullptr) {
@@ -333,12 +336,13 @@ class screen_ex final : public screen_base {
         if (m_on_flush_callback != nullptr && m_buffer_size != 0 &&
             m_buffer1 != nullptr && m_dirty_rects.size() != 0) {
             // wait for flush completion
-            int flushing = m_flushing;
-            if (m_buffer2 == nullptr) {
-                if (flushing) {
+            //if (m_buffer2 == nullptr) {
+                if (m_flushing) {
                     return uix_result::success;
                 }
-            }
+            //}
+            // Serial.println("Render started");
+            // Serial.flush();
             if (m_it_dirties == nullptr) {
                 // m_it_dirties is null when not rendering
                 // so basically when it's null this is the first call
@@ -414,11 +418,13 @@ class screen_ex final : public screen_base {
             subrect = subrect.crop((srect16)aligned);
             // create a bitmap for the subrect over the write buffer
             uint8_t* buf = (uint8_t*)m_write_buffer;
-
             // assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
             bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
             // fill it with the screen color
+            // Serial.println("Start painting controls");
+            
             bmp.fill(bmp.bounds(), m_background_color);
+            // Serial.println("Background painted (buffer touched)");
             // for each control
             for (typename controls_type::iterator ctl_it = m_controls.begin();
                  ctl_it != m_controls.end(); ++ctl_it) {
@@ -445,26 +451,29 @@ class screen_ex final : public screen_base {
                     pctl->on_paint(surface, surface_clip);
                 }
             }
-
+            // Serial.println("Done painting controls");
             if (m_buffer2 != nullptr) {
-                int flushing = m_flushing;
-                if (flushing) {
+                if (m_flushing) {
                     m_flush_pending_bounds = (rect16)subrect;
                     m_flush_pending = true;
+                    // Serial.println("Awaiting DMA transfer");
                     return uix_result::success;
                 }
             }
+            // Serial.println("DMA available. Switching buffers");
             // switch out m_write_buffer so if it points to m_buffer1 it now
             // points to m_buffer2 and vice versa. if there's just one buffer,
             // we don't change anything.
             switch_buffers();
+            // Serial.println("Initiating flush");
             // tell it we're flushing and run the callback
             m_flushing = 1;
             // initiate the DMA transfer on whatever was *previously*
             // m_write_buffer before switch_buffers was called.
             m_on_flush_callback(
-                (rect16)subrect, bmp.begin(),
+                (rect16)subrect, buf,
                 m_on_flush_callback_state);  // initiate DMA transfer
+            // Serial.println("Flush started");
             // the above may return immediately before the
             // transfer is complete. To take advantage of
             // this, rather than wait, we swap out to a
@@ -653,7 +662,7 @@ class screen_ex final : public screen_base {
             for (rect16* it = m_dirty_rects.begin(); it != m_dirty_rects.end();
                  ++it) {
                 if (it->contains(r)) {
-                    // Serial.printf("Dirty rects count:
+                    // // Serial.printf("Dirty rects count:
                     // %d\n",m_dirty_rects.size());
                     return uix_result::success;
                 }
@@ -678,17 +687,17 @@ class screen_ex final : public screen_base {
                     --it;
                 }
             }
-            // Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
+            // // Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
             return m_dirty_rects.push_back(r) ? uix_result::success
                                               : uix_result::out_of_memory;
         }
-        // Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
+        // // Serial.printf("Dirty rects count: %d\n",m_dirty_rects.size());
         return uix_result::success;
     }
     /// @brief Marks all dirty rectangles as valid
     /// @return The result of the operation
     virtual uix_result validate_all() override {
-        // Serial.println("validate all");
+        // // Serial.println("validate all");
         m_dirty_rects.clear();
         return uix_result::success;
     }
@@ -788,7 +797,7 @@ class screen_ex final : public screen_base {
         m_on_touch_callback_state = state;
     }
     virtual bool flush_pending() const {
-        return m_flush_pending;
+        return m_flush_pending || m_flushing;
     }
     /// @brief Updates the screen, processing touch input and updating and
     /// flushing invalid portions of the screen to the display
