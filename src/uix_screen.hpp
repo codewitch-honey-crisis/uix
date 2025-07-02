@@ -10,7 +10,7 @@ class screen_base : public invalidation_tracker {
     typedef void (*on_wait_flush_callback_type)(void* state);
     /// @brief The flush callback for transfering data to the display.
     typedef void (*on_flush_callback_type)(const rect16& bounds,
-                                           void* bmp, void* state);
+                                           const void* bmp, void* state);
     /// @brief The touch callback for getting touch screen touch location
     /// information
     typedef void (*on_touch_callback_type)(point16* out_locations,
