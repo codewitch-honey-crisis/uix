@@ -336,11 +336,11 @@ class screen_ex final : public screen_base {
         if (m_on_flush_callback != nullptr && m_buffer_size != 0 &&
             m_buffer1 != nullptr && m_dirty_rects.size() != 0) {
             // wait for flush completion
-            //if (m_buffer2 == nullptr) {
+            if (m_buffer2 == nullptr) {
                 if (m_flushing) {
                     return uix_result::success;
                 }
-            //}
+            }
             // Serial.println("Render started");
             // Serial.flush();
             if (m_it_dirties == nullptr) {
@@ -356,6 +356,9 @@ class screen_ex final : public screen_base {
                 m_bmp_lines = v_align_down(m_buffer_size / bmp_stride);
                 if (m_bmp_lines > dimensions().height) {
                     m_bmp_lines = dimensions().height;
+                }
+                while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
+                    m_bmp_lines-=1;
                 }
                 if (bmp_min > m_buffer_size) {
                     return uix_result::out_of_memory;
@@ -396,6 +399,9 @@ class screen_ex final : public screen_base {
                     if (m_bmp_lines > dimensions().height) {
                         m_bmp_lines = dimensions().height;
                     }
+                    while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
+                        m_bmp_lines-=1;
+                    }
                     // if we don't have enough space for at least one line,
                     // error out
                     if (bmp_min > m_buffer_size) {
@@ -404,6 +410,9 @@ class screen_ex final : public screen_base {
                     // start at the top of the dirty rectangle:
                     m_bmp_y = 0;
                 } else {
+                    while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
+                        m_bmp_lines-=1;
+                    }
                     // move down to the next subrect
                     m_bmp_y += m_bmp_lines;
                 }

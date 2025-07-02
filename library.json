@@ -1,6 +1,6 @@
 {
     "name": "htcw_uix",
-    "version": "1.6.9",
+    "version": "1.6.10",
     "description": "A UI/UX library for embedded and IoT devices, for use with htcw_gfx",
     "keywords": ["tft", "UX","UI","GUI","user-experience","user-interface", "graphics", "spi", "parallel", "i2c", "drawing", "jpg", "ttf", "font"],
     "authors": {
@@ -12,7 +12,7 @@
     "platforms": "*",
     "build": {
         "unflags": "-std=gnu++11",
-        "flags": "-std=gnu++14"
+        "flags": "-std=gnu++17"
     },
     "repository": {
         "type": "git",
