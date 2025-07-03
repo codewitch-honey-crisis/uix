@@ -87,9 +87,6 @@ namespace uix {
             }
             return false;
         }
-#ifdef IRAM_ATTR
-IRAM_ATTR
-#endif
         void display::flush_complete() {
             if(m_active_screen!=nullptr) {
                 m_active_screen->flush_complete();
