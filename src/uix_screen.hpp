@@ -4,6 +4,10 @@
 
 #include "uix_core.hpp"
 namespace uix {
+enum struct screen_update_mode {
+    partial = 0,
+    direct = 1
+};
 class screen_base : public invalidation_tracker {
    public:
     /// @brief The callback for wait style DMA transfers
@@ -39,6 +43,12 @@ class screen_base : public invalidation_tracker {
     /// another thread, this will always be false.
     /// @return True if the screen is currently flushing, otherwise false.
     virtual bool flushing() const = 0;
+    /// @brief Indicates the update mode for the screen
+    /// @return The update mode
+    virtual screen_update_mode update_mode() const = 0;
+    /// @brief Sets the update mode for the screen
+    /// @param mode The update mode
+    virtual void update_mode(screen_update_mode mode) = 0;
     /// @brief Indicates the size of the transfer buffer(s)
     /// @return a size_t containing the size of the buffer
     virtual size_t buffer_size() const = 0;
@@ -183,6 +193,7 @@ class screen_ex final : public screen_base {
         m_on_touch_callback_state = rhs.m_on_touch_callback_state;
         m_flush_pending = rhs.m_flush_pending;
         m_flush_pending_bounds = rhs.m_flush_pending_bounds;
+        m_update_mode = rhs.m_update_mode;
     }
 
     template <typename T>
@@ -331,165 +342,219 @@ class screen_ex final : public screen_base {
                 }
             }
         }
-        // rendering process
-        // note we skip this until we have a free buffer
-        if (m_on_flush_callback != nullptr && m_buffer_size != 0 &&
-            m_buffer1 != nullptr && m_dirty_rects.size() != 0) {
-            // wait for flush completion
-            if (m_buffer2 == nullptr) {
-                if (m_flushing) {
-                    return uix_result::success;
-                }
+        switch(m_update_mode) {
+            case screen_update_mode::partial: {
+                // rendering process
+                // note we skip this until we have a free buffer
+                if (m_on_flush_callback != nullptr && m_buffer_size != 0 &&
+                    m_buffer1 != nullptr && m_dirty_rects.size() != 0) {
+                    // wait for flush completion
+                    if (m_buffer2 == nullptr) {
+                        if (m_flushing) {
+                            return uix_result::success;
+                        }
+                    }           
+                    if (m_it_dirties == nullptr) {
+                        // m_it_dirties is null when not rendering
+                        // so basically when it's null this is the first call
+                        // and we initialize some stuff
+                        m_it_dirties = m_dirty_rects.cbegin();
+                        const rect16 aligned = align_up(*m_it_dirties);
+                        size_t bmp_stride = native_bitmap_type::sizeof_buffer(
+                            size16(aligned.width(), 1));
+                        size_t bmp_min = native_bitmap_type::sizeof_buffer(
+                            size16(aligned.width(), v_align_up(1)));
+                        m_bmp_lines = v_align_down(m_buffer_size / bmp_stride);
+                        if (m_bmp_lines > dimensions().height) {
+                            m_bmp_lines = dimensions().height;
+                        }
+                        while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
+                            m_bmp_lines-=1;
+                        }
+                        if (bmp_min > m_buffer_size) {
+                            return uix_result::out_of_memory;
+                        }
+                        m_bmp_y = 0;
+                    } else {
+                        // if we're past the current
+                        // dirty rectangle bounds:
+                        rect16 aligned = align_up(*m_it_dirties);
+                        if (m_bmp_y + aligned.y1 + m_bmp_lines >= aligned.y2) {
+                            // go to the next dirty rectangle
+                            ++m_it_dirties;
+                            if (m_it_dirties == m_dirty_rects.cend()) {
+                                // if we're at the end, shut it down
+                                // first tell any necessary controls we're done
+                                // rendering
+                                for (typename controls_type::iterator it =
+                                        m_controls.begin();
+                                    it != m_controls.end(); ++it) {
+                                    if (it->state == 1) {
+                                        it->ctrl->on_after_paint();
+                                        it->state = 0;
+                                    }
+                                }
+                                // clear all dirty rects
+                                m_it_dirties = nullptr;
+                                return validate_all();
+                            }
+                            aligned = align_up(*m_it_dirties);
+                            // now we compute the bitmap stride (one line, in bytes)
+                            size_t bmp_stride = native_bitmap_type::sizeof_buffer(
+                                size16(aligned.width(), 1));
+                            size_t bmp_min = native_bitmap_type::sizeof_buffer(
+                                size16(aligned.width(), v_align_up(1)));
+                            // now we figure out how many lines we can have in these
+                            // subrects based on the total memory we're working with
+                            m_bmp_lines = v_align_down(m_buffer_size / bmp_stride);
+                            if (m_bmp_lines > dimensions().height) {
+                                m_bmp_lines = dimensions().height;
+                            }
+                            while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
+                                m_bmp_lines-=1;
+                            }
+                            // if we don't have enough space for at least one line,
+                            // error out
+                            if (bmp_min > m_buffer_size) {
+                                return uix_result::out_of_memory;
+                            }
+                            // start at the top of the dirty rectangle:
+                            m_bmp_y = 0;
+                        } else {
+                            while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
+                                m_bmp_lines-=1;
+                            }
+                            // move down to the next subrect
+                            m_bmp_y += m_bmp_lines;
+                        }
+                    }
+                    const rect16 aligned = align_up(*m_it_dirties);
+                    // create a subrect the same width as the dirty, and m_bmp_lines
+                    // high starting at m_bmp_y within the dirty rectangle
+                    srect16 subrect(aligned.x1, aligned.y1 + m_bmp_y, aligned.x2,
+                                    aligned.y1 + m_bmp_lines + m_bmp_y - 1);
+                    // make sure the subrect is cropped within the bounds
+                    // of the dirties. sometimes the last one overhangs.
+                    subrect = subrect.crop((srect16)aligned);
+                    // create a bitmap for the subrect over the write buffer
+                    uint8_t* buf = (uint8_t*)m_write_buffer;
+                    // assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
+                    bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
+                    // fill it with the screen color
+                    // Serial.println("Start painting controls");
+                    
+                    bmp.fill(bmp.bounds(), m_background_color);
+                    // Serial.println("Background painted (buffer touched)");
+                    // for each control
+                    for (typename controls_type::iterator ctl_it = m_controls.begin();
+                        ctl_it != m_controls.end(); ++ctl_it) {
+                        control_type* pctl = ctl_it->ctrl;
+                        // if it's visible and intersects this subrect
+                        if (pctl->visible() && pctl->bounds().intersects(subrect)) {
+                            // create the offset surface rectangle for drawing
+                            srect16 surface_rect = pctl->bounds();
+                            spoint16 bmp_offset(surface_rect.x1 - subrect.x1,
+                                                surface_rect.y1 - subrect.y1);
+                            surface_rect.offset_inplace(-subrect.x1, -subrect.y1);
+                            // create the clip rectangle for the control
+                            srect16 surface_clip = pctl->bounds().crop(subrect);
+                            surface_clip.offset_inplace(-pctl->bounds().x1,
+                                                        -pctl->bounds().y1);
+                            // create the control surface
+                            control_surface_type surface(bmp, surface_rect, bmp_offset);
+                            // if we haven't called on_before_paint, do so now
+                            if (ctl_it->state == 0) {
+                                pctl->on_before_paint();
+                                ctl_it->state = 1;
+                            }
+                            // and paint
+                            pctl->on_paint(surface, surface_clip);
+                        }
+                    }
+                    // Serial.println("Done painting controls");
+                    if (m_buffer2 != nullptr) {
+                        if (m_flushing) {
+                            m_flush_pending_bounds = (rect16)subrect;
+                            m_flush_pending = true;
+                            // Serial.println("Awaiting DMA transfer");
+                            return uix_result::success;
+                        }
+                    }
+                    // Serial.println("DMA available. Switching buffers");
+                    // switch out m_write_buffer so if it points to m_buffer1 it now
+                    // points to m_buffer2 and vice versa. if there's just one buffer,
+                    // we don't change anything.
+                    switch_buffers();
+                    // Serial.println("Initiating flush");
+                    // tell it we're flushing and run the callback
+                    m_flushing = 1;
+                    // initiate the DMA transfer on whatever was *previously*
+                    // m_write_buffer before switch_buffers was called.
+                    m_on_flush_callback(
+                        (rect16)subrect, buf,
+                        m_on_flush_callback_state);  // initiate DMA transfer
+                    // Serial.println("Flush started");
+                    // the above may return immediately before the
+                    // transfer is complete. To take advantage of
+                    // this, rather than wait, we swap out to a
+                    // second buffer and continue drawing while
+                    // the transfer is in progress. That's what
+                    // switch_buffers() is doing beforehand just above
+                }        
             }
-            // Serial.println("Render started");
-            // Serial.flush();
-            if (m_it_dirties == nullptr) {
-                // m_it_dirties is null when not rendering
-                // so basically when it's null this is the first call
-                // and we initialize some stuff
-                m_it_dirties = m_dirty_rects.cbegin();
-                const rect16 aligned = align_up(*m_it_dirties);
-                size_t bmp_stride = native_bitmap_type::sizeof_buffer(
-                    size16(aligned.width(), 1));
-                size_t bmp_min = native_bitmap_type::sizeof_buffer(
-                    size16(aligned.width(), v_align_up(1)));
-                m_bmp_lines = v_align_down(m_buffer_size / bmp_stride);
-                if (m_bmp_lines > dimensions().height) {
-                    m_bmp_lines = dimensions().height;
-                }
-                while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
-                    m_bmp_lines-=1;
-                }
-                if (bmp_min > m_buffer_size) {
-                    return uix_result::out_of_memory;
-                }
-                m_bmp_y = 0;
-            } else {
-                // if we're past the current
-                // dirty rectangle bounds:
-                rect16 aligned = align_up(*m_it_dirties);
-                if (m_bmp_y + aligned.y1 + m_bmp_lines >= aligned.y2) {
-                    // go to the next dirty rectangle
-                    ++m_it_dirties;
-                    if (m_it_dirties == m_dirty_rects.cend()) {
-                        // if we're at the end, shut it down
-                        // first tell any necessary controls we're done
-                        // rendering
-                        for (typename controls_type::iterator it =
-                                 m_controls.begin();
-                             it != m_controls.end(); ++it) {
-                            if (it->state == 1) {
-                                it->ctrl->on_after_paint();
-                                it->state = 0;
+            break;
+            case screen_update_mode::direct: {
+                if(m_buffer_size != 0 && m_buffer1 != nullptr && m_dirty_rects.size() != 0) {
+                    bitmap_type bmp((size16)this->dimensions(), m_buffer1, m_palette);
+                    for(auto it_d = m_dirty_rects.cbegin();it_d!=m_dirty_rects.cend();++it_d) {
+                        rect16 r = *it_d;
+                        srect16 subrect = (srect16)r;
+                        bmp.fill(r,m_background_color);
+                        for (typename controls_type::iterator ctl_it = m_controls.begin();
+                            ctl_it != m_controls.end(); ++ctl_it) {
+                            control_type* pctl = ctl_it->ctrl;
+                            // if it's visible and intersects this subrect
+                            if (pctl->visible() && pctl->bounds().intersects(subrect)) {
+                                // create the offset surface rectangle for drawing
+                                srect16 surface_rect = pctl->bounds();
+                                spoint16 bmp_offset(surface_rect.x1 - subrect.x1,
+                                                    surface_rect.y1 - subrect.y1);
+                                surface_rect.offset_inplace(-subrect.x1, -subrect.y1);
+                                // create the clip rectangle for the control
+                                srect16 surface_clip = pctl->bounds().crop(subrect);
+                                surface_clip.offset_inplace(-pctl->bounds().x1,
+                                                            -pctl->bounds().y1);
+                                // create the control surface
+                                control_surface_type surface(bmp, surface_rect, bmp_offset);
+                                // if we haven't called on_before_paint, do so now
+                                if (ctl_it->state == 0) {
+                                    pctl->on_before_paint();
+                                    ctl_it->state = 1;
+                                }
+                                // and paint
+                                pctl->on_paint(surface, surface_clip);
                             }
                         }
-                        // clear all dirty rects
-                        m_it_dirties = nullptr;
-                        return validate_all();
                     }
-                    aligned = align_up(*m_it_dirties);
-                    // now we compute the bitmap stride (one line, in bytes)
-                    size_t bmp_stride = native_bitmap_type::sizeof_buffer(
-                        size16(aligned.width(), 1));
-                    size_t bmp_min = native_bitmap_type::sizeof_buffer(
-                        size16(aligned.width(), v_align_up(1)));
-                    // now we figure out how many lines we can have in these
-                    // subrects based on the total memory we're working with
-                    m_bmp_lines = v_align_down(m_buffer_size / bmp_stride);
-                    if (m_bmp_lines > dimensions().height) {
-                        m_bmp_lines = dimensions().height;
+                    // if we're at the end, shut it down
+                    // first tell any necessary controls we're done
+                    // rendering
+                    for (typename controls_type::iterator it =
+                            m_controls.begin();
+                        it != m_controls.end(); ++it) {
+                        if (it->state == 1) {
+                            it->ctrl->on_after_paint();
+                            it->state = 0;
+                        }
                     }
-                    while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
-                        m_bmp_lines-=1;
-                    }
-                    // if we don't have enough space for at least one line,
-                    // error out
-                    if (bmp_min > m_buffer_size) {
-                        return uix_result::out_of_memory;
-                    }
-                    // start at the top of the dirty rectangle:
-                    m_bmp_y = 0;
-                } else {
-                    while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
-                        m_bmp_lines-=1;
-                    }
-                    // move down to the next subrect
-                    m_bmp_y += m_bmp_lines;
+                    return validate_all();
                 }
             }
-            const rect16 aligned = align_up(*m_it_dirties);
-            // create a subrect the same width as the dirty, and m_bmp_lines
-            // high starting at m_bmp_y within the dirty rectangle
-            srect16 subrect(aligned.x1, aligned.y1 + m_bmp_y, aligned.x2,
-                            aligned.y1 + m_bmp_lines + m_bmp_y - 1);
-            // make sure the subrect is cropped within the bounds
-            // of the dirties. sometimes the last one overhangs.
-            subrect = subrect.crop((srect16)aligned);
-            // create a bitmap for the subrect over the write buffer
-            uint8_t* buf = (uint8_t*)m_write_buffer;
-            // assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
-            bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
-            // fill it with the screen color
-            // Serial.println("Start painting controls");
-            
-            bmp.fill(bmp.bounds(), m_background_color);
-            // Serial.println("Background painted (buffer touched)");
-            // for each control
-            for (typename controls_type::iterator ctl_it = m_controls.begin();
-                 ctl_it != m_controls.end(); ++ctl_it) {
-                control_type* pctl = ctl_it->ctrl;
-                // if it's visible and intersects this subrect
-                if (pctl->visible() && pctl->bounds().intersects(subrect)) {
-                    // create the offset surface rectangle for drawing
-                    srect16 surface_rect = pctl->bounds();
-                    spoint16 bmp_offset(surface_rect.x1 - subrect.x1,
-                                        surface_rect.y1 - subrect.y1);
-                    surface_rect.offset_inplace(-subrect.x1, -subrect.y1);
-                    // create the clip rectangle for the control
-                    srect16 surface_clip = pctl->bounds().crop(subrect);
-                    surface_clip.offset_inplace(-pctl->bounds().x1,
-                                                -pctl->bounds().y1);
-                    // create the control surface
-                    control_surface_type surface(bmp, surface_rect, bmp_offset);
-                    // if we haven't called on_before_paint, do so now
-                    if (ctl_it->state == 0) {
-                        pctl->on_before_paint();
-                        ctl_it->state = 1;
-                    }
-                    // and paint
-                    pctl->on_paint(surface, surface_clip);
-                }
-            }
-            // Serial.println("Done painting controls");
-            if (m_buffer2 != nullptr) {
-                if (m_flushing) {
-                    m_flush_pending_bounds = (rect16)subrect;
-                    m_flush_pending = true;
-                    // Serial.println("Awaiting DMA transfer");
-                    return uix_result::success;
-                }
-            }
-            // Serial.println("DMA available. Switching buffers");
-            // switch out m_write_buffer so if it points to m_buffer1 it now
-            // points to m_buffer2 and vice versa. if there's just one buffer,
-            // we don't change anything.
-            switch_buffers();
-            // Serial.println("Initiating flush");
-            // tell it we're flushing and run the callback
-            m_flushing = 1;
-            // initiate the DMA transfer on whatever was *previously*
-            // m_write_buffer before switch_buffers was called.
-            m_on_flush_callback(
-                (rect16)subrect, buf,
-                m_on_flush_callback_state);  // initiate DMA transfer
-            // Serial.println("Flush started");
-            // the above may return immediately before the
-            // transfer is complete. To take advantage of
-            // this, rather than wait, we swap out to a
-            // second buffer and continue drawing while
-            // the transfer is in progress. That's what
-            // switch_buffers() is doing beforehand just above
+            break;
+            default:
+                break;
         }
+        
         return uix_result::success;
     }
     ssize16 m_dimensions;
@@ -513,7 +578,7 @@ class screen_ex final : public screen_base {
     typename controls_type::iterator m_last_touched;
     bool m_flush_pending;
     rect16 m_flush_pending_bounds;
-
+    screen_update_mode m_update_mode;
    public:
     /// @brief Constructs a screen given a buffer size, and one or two buffers,
     /// plus an optional palette
@@ -555,7 +620,8 @@ class screen_ex final : public screen_base {
           m_on_touch_callback(nullptr),
           m_on_touch_callback_state(nullptr),
           m_last_touched(nullptr),
-          m_flush_pending(false) {}
+          m_flush_pending(false),
+          m_update_mode(screen_update_mode::partial) {}
     /// @brief Constructs an uninitialized screen instance
     /// @param allocator The memory allocator to use for the controls (malloc)
     /// @param reallocator The memory reallocator to use for the controls
@@ -616,6 +682,17 @@ class screen_ex final : public screen_base {
     /// another thread, this will always be false.
     /// @return True if the screen is currently flushing, otherwise false.
     virtual bool flushing() const override { return m_flushing != 0; }
+    /// @brief Indicates the update mode for the screen
+    /// @return The update mode
+    virtual screen_update_mode update_mode() const {
+        return m_update_mode;
+    }
+    /// @brief Sets the update mode for the screen
+    /// @param value The update mode
+    virtual void update_mode(screen_update_mode value) {
+        m_update_mode = value;
+    }
+    
     /// @brief Indicates the size of the transfer buffer(s)
     /// @return a size_t containing the size of the buffer
     virtual size_t buffer_size() const override { return m_buffer_size; }

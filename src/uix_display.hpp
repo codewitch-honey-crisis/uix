@@ -17,9 +17,16 @@ namespace uix {
         void* m_on_touch_callback_state;
         size_t m_buffer_size;
         uint8_t* m_buffer1, *m_buffer2;
+        screen_update_mode m_update_mode;
     public:
         // constructs a new instance
         display();
+        /// @brief Indicates the update mode for the screen
+        /// @return The update mode
+        screen_update_mode update_mode() const;
+        /// @brief Sets the update mode for the screen
+        /// @param mode The update mode
+        void update_mode(screen_update_mode mode);
         /// @brief Indicates the size of the transfer buffer(s)
         /// @return a size_t containing the size of the buffer
         size_t buffer_size() const;

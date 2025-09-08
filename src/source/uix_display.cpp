@@ -1,9 +1,16 @@
 #include <uix_display.hpp>
 
 namespace uix {
-        display::display() :  m_active_screen(nullptr),m_on_flush_callback(nullptr),m_on_wait_flush_callback(nullptr),m_on_touch_callback(nullptr) {
+        display::display() :  m_active_screen(nullptr),m_on_flush_callback(nullptr),m_on_wait_flush_callback(nullptr),m_on_touch_callback(nullptr),m_update_mode(screen_update_mode::partial) {
             
         }
+        screen_update_mode display::update_mode() const {
+            return m_update_mode;
+        }
+        void display::update_mode(screen_update_mode mode) {
+            m_update_mode = mode;
+        }
+        
         size_t display::buffer_size() const {
             return m_buffer_size;
         }
@@ -66,6 +73,7 @@ namespace uix {
             }
             m_active_screen = &value;
             if(m_active_screen!=nullptr) {
+                m_active_screen->update_mode(m_update_mode);
                 m_active_screen->on_flush_callback(m_on_flush_callback,m_on_flush_callback_state);
                 m_active_screen->on_wait_flush_callback(m_on_wait_flush_callback);
                 m_active_screen->on_touch_callback(m_on_touch_callback,m_on_touch_callback_state);
