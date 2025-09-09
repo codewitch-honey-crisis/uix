@@ -270,7 +270,7 @@ class screen_ex final : public screen_base {
     uix_result update_impl() {
         // we had to early exit the last time
         if (m_flush_pending) {
-            if(m_flushing) {
+            if (m_flushing) {
                 return uix_result::success;
             }
             // Serial.println("Initiating pending flush");
@@ -280,13 +280,12 @@ class screen_ex final : public screen_base {
             switch_buffers();
             // initiate the DMA transfer on whatever was *previously*
             // m_write_buffer before switch_buffers was called.
-            //delay(50);
+            // delay(50);
             m_on_flush_callback(
                 m_flush_pending_bounds, buf,
                 m_on_flush_callback_state);  // initiate DMA transfer
             // Serial.println("Pending flush started. Early out");
             return uix_result::success;
-
         }
         // if not rendering, process touch
         if (m_it_dirties == nullptr && m_on_touch_callback != nullptr) {
@@ -342,7 +341,7 @@ class screen_ex final : public screen_base {
                 }
             }
         }
-        switch(m_update_mode) {
+        switch (m_update_mode) {
             case screen_update_mode::partial: {
                 // rendering process
                 // note we skip this until we have a free buffer
@@ -353,7 +352,7 @@ class screen_ex final : public screen_base {
                         if (m_flushing) {
                             return uix_result::success;
                         }
-                    }           
+                    }
                     if (m_it_dirties == nullptr) {
                         // m_it_dirties is null when not rendering
                         // so basically when it's null this is the first call
@@ -368,8 +367,8 @@ class screen_ex final : public screen_base {
                         if (m_bmp_lines > dimensions().height) {
                             m_bmp_lines = dimensions().height;
                         }
-                        while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
-                            m_bmp_lines-=1;
+                        while (native_bitmap_type::sizeof_buffer(aligned.width(), m_bmp_lines) > m_buffer_size) {
+                            m_bmp_lines -= 1;
                         }
                         if (bmp_min > m_buffer_size) {
                             return uix_result::out_of_memory;
@@ -387,8 +386,8 @@ class screen_ex final : public screen_base {
                                 // first tell any necessary controls we're done
                                 // rendering
                                 for (typename controls_type::iterator it =
-                                        m_controls.begin();
-                                    it != m_controls.end(); ++it) {
+                                         m_controls.begin();
+                                     it != m_controls.end(); ++it) {
                                     if (it->state == 1) {
                                         it->ctrl->on_after_paint();
                                         it->state = 0;
@@ -410,8 +409,8 @@ class screen_ex final : public screen_base {
                             if (m_bmp_lines > dimensions().height) {
                                 m_bmp_lines = dimensions().height;
                             }
-                            while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
-                                m_bmp_lines-=1;
+                            while (native_bitmap_type::sizeof_buffer(aligned.width(), m_bmp_lines) > m_buffer_size) {
+                                m_bmp_lines -= 1;
                             }
                             // if we don't have enough space for at least one line,
                             // error out
@@ -421,8 +420,8 @@ class screen_ex final : public screen_base {
                             // start at the top of the dirty rectangle:
                             m_bmp_y = 0;
                         } else {
-                            while(native_bitmap_type::sizeof_buffer(aligned.width(),m_bmp_lines)>m_buffer_size) {
-                                m_bmp_lines-=1;
+                            while (native_bitmap_type::sizeof_buffer(aligned.width(), m_bmp_lines) > m_buffer_size) {
+                                m_bmp_lines -= 1;
                             }
                             // move down to the next subrect
                             m_bmp_y += m_bmp_lines;
@@ -442,12 +441,12 @@ class screen_ex final : public screen_base {
                     bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
                     // fill it with the screen color
                     // Serial.println("Start painting controls");
-                    
+
                     bmp.fill(bmp.bounds(), m_background_color);
                     // Serial.println("Background painted (buffer touched)");
                     // for each control
                     for (typename controls_type::iterator ctl_it = m_controls.begin();
-                        ctl_it != m_controls.end(); ++ctl_it) {
+                         ctl_it != m_controls.end(); ++ctl_it) {
                         control_type* pctl = ctl_it->ctrl;
                         // if it's visible and intersects this subrect
                         if (pctl->visible() && pctl->bounds().intersects(subrect)) {
@@ -500,26 +499,24 @@ class screen_ex final : public screen_base {
                     // second buffer and continue drawing while
                     // the transfer is in progress. That's what
                     // switch_buffers() is doing beforehand just above
-                }        
-            }
-            break;
+                }
+            } break;
             case screen_update_mode::direct: {
-                if(m_buffer_size != 0 && m_buffer1 != nullptr && m_dirty_rects.size() != 0) {
+                if (m_buffer_size != 0 && m_buffer1 != nullptr && m_dirty_rects.size() != 0) {
                     bitmap_type bmp((size16)this->dimensions(), m_buffer1, m_palette);
-                    for(auto it_d = m_dirty_rects.cbegin();it_d!=m_dirty_rects.cend();++it_d) {
+                    for (auto it_d = m_dirty_rects.cbegin(); it_d != m_dirty_rects.cend(); ++it_d) {
                         rect16 r = *it_d;
                         srect16 subrect = (srect16)r;
-                        bmp.fill(r,m_background_color);
+                        bmp.fill(r, m_background_color);
                         for (typename controls_type::iterator ctl_it = m_controls.begin();
-                            ctl_it != m_controls.end(); ++ctl_it) {
+                             ctl_it != m_controls.end(); ++ctl_it) {
                             control_type* pctl = ctl_it->ctrl;
                             // if it's visible and intersects this subrect
                             if (pctl->visible() && pctl->bounds().intersects(subrect)) {
                                 // create the offset surface rectangle for drawing
                                 srect16 surface_rect = pctl->bounds();
-                                spoint16 bmp_offset(surface_rect.x1 - subrect.x1,
-                                                    surface_rect.y1 - subrect.y1);
-                                surface_rect.offset_inplace(-subrect.x1, -subrect.y1);
+                                spoint16 bmp_offset(surface_rect.x1 ,
+                                                    surface_rect.y1 );
                                 // create the clip rectangle for the control
                                 srect16 surface_clip = pctl->bounds().crop(subrect);
                                 surface_clip.offset_inplace(-pctl->bounds().x1,
@@ -540,8 +537,8 @@ class screen_ex final : public screen_base {
                     // first tell any necessary controls we're done
                     // rendering
                     for (typename controls_type::iterator it =
-                            m_controls.begin();
-                        it != m_controls.end(); ++it) {
+                             m_controls.begin();
+                         it != m_controls.end(); ++it) {
                         if (it->state == 1) {
                             it->ctrl->on_after_paint();
                             it->state = 0;
@@ -549,12 +546,11 @@ class screen_ex final : public screen_base {
                     }
                     return validate_all();
                 }
-            }
-            break;
+            } break;
             default:
                 break;
         }
-        
+
         return uix_result::success;
     }
     ssize16 m_dimensions;
@@ -579,6 +575,7 @@ class screen_ex final : public screen_base {
     bool m_flush_pending;
     rect16 m_flush_pending_bounds;
     screen_update_mode m_update_mode;
+
    public:
     /// @brief Constructs a screen given a buffer size, and one or two buffers,
     /// plus an optional palette
@@ -692,7 +689,7 @@ class screen_ex final : public screen_base {
     virtual void update_mode(screen_update_mode value) {
         m_update_mode = value;
     }
-    
+
     /// @brief Indicates the size of the transfer buffer(s)
     /// @return a size_t containing the size of the buffer
     virtual size_t buffer_size() const override { return m_buffer_size; }
@@ -894,7 +891,7 @@ class screen_ex final : public screen_base {
         }
         while (full && m_it_dirties != nullptr) {
             res = update_impl();
-            if(m_flush_pending) {
+            if (m_flush_pending) {
                 return uix_result::success;
             }
             if (res != uix_result::success) {
