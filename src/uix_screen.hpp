@@ -507,7 +507,7 @@ class screen_ex final : public screen_base {
                     for (auto it_d = m_dirty_rects.cbegin(); it_d != m_dirty_rects.cend(); ++it_d) {
                         rect16 r = *it_d;
                         srect16 subrect = (srect16)r;
-                        bmp.fill(r, m_background_color);
+                        bmp.fill(r,m_background_color);
                         for (typename controls_type::iterator ctl_it = m_controls.begin();
                              ctl_it != m_controls.end(); ++ctl_it) {
                             control_type* pctl = ctl_it->ctrl;
@@ -515,8 +515,7 @@ class screen_ex final : public screen_base {
                             if (pctl->visible() && pctl->bounds().intersects(subrect)) {
                                 // create the offset surface rectangle for drawing
                                 srect16 surface_rect = pctl->bounds();
-                                spoint16 bmp_offset(surface_rect.x1 ,
-                                                    surface_rect.y1 );
+                                spoint16 bmp_offset(0,0);
                                 // create the clip rectangle for the control
                                 srect16 surface_clip = pctl->bounds().crop(subrect);
                                 surface_clip.offset_inplace(-pctl->bounds().x1,

@@ -151,9 +151,15 @@ namespace uix {
             /// @param pixel The new color
             /// @return The result of the operation
             gfx::gfx_result point(point16 location, pixel_type pixel) {
-                location.x+=m_rect.x1;
-                location.y+=m_rect.y1;
-                return m_bitmap.point(location,pixel);
+                //if(location.x<m_rect.width() && location.y<m_rect.height()) {
+                    location.x+=m_rect.x1;
+                    location.y+=m_rect.y1;
+                    return m_bitmap.point(location,pixel);
+                
+                //} else { 
+                 //   printf("(%d,%d) vs (%d,%d)\n",location.x,location.y,m_rect.width(),m_rect.height());
+               // }
+                return gfx::gfx_result::success;
             }
             /// @brief Fills a rectangular region with a color
             /// @param bounds The rect16 coordinates to fill
@@ -168,6 +174,7 @@ namespace uix {
                     b.y2+=m_rect.y1;
                     if(b.intersects((srect16)m_bitmap.bounds())) {
                         b=b.crop((srect16)m_bitmap.bounds());
+                        //b=b.crop(m_rect);
                         return m_bitmap.fill((rect16)b,pixel);
                     }
                 }
