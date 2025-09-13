@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(htcw_uix VERSION 1.7.3)
+project(htcw_uix VERSION 1.7.4)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
@@ -10,7 +10,7 @@ FetchContent_Declare(htcw_gfx
     GIT_REPOSITORY https://github.com/codewitch-honey-crisis/gfx.git
     GIT_TAG 2.2.6
     GIT_SHALLOW ON
-    FIND_PACKAGE_ARGS 2.2.6
+    FIND_PACKAGE_ARGS 2.2.7
 )
 
 FetchContent_MakeAvailable(htcw_gfx)
