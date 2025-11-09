@@ -1,6 +1,6 @@
 {
     "name": "htcw_uix",
-    "version": "1.7.4",
+    "version": "1.7.5",
     "description": "A UI/UX library for embedded and IoT devices, for use with htcw_gfx",
     "keywords": ["tft", "UX","UI","GUI","user-experience","user-interface", "graphics", "spi", "parallel", "i2c", "drawing", "jpg", "ttf", "font"],
     "authors": {
@@ -61,7 +61,7 @@
         }
     ],
     "dependencies": {
-        "codewitch-honey-crisis/htcw_gfx": "^2.2.7"
+        "codewitch-honey-crisis/htcw_gfx": "^2.2.8"
     },
     "export": {
         "exclude":
