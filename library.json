@@ -66,6 +66,7 @@
     "export": {
         "exclude":
         [
+            "build/*.*",
             ".vscode/*.*",
             "lib/*.*"
         ]
