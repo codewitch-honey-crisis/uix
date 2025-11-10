@@ -916,6 +916,10 @@ namespace uix {
                 // couldn't allocate or something
                 return;
             }
+            constexpr static const pixel_type black = gfx::convert<gfx::rgb_pixel<16>,pixel_type>(gfx::rgb_pixel<16>(0,true));
+            constexpr static const pixel_type white = gfx::convert<gfx::rgb_pixel<16>,pixel_type>(gfx::rgb_pixel<16>(31,63,31));
+                    
+            destination.fill(destination.bounds(),white);
             const uint16_t w = destination.dimensions().height<destination.dimensions().width?destination.dimensions().height:destination.dimensions().width;
             size16 s;
             if(m_code.size >=w) {
@@ -923,13 +927,13 @@ namespace uix {
             } else {
                 s.width=s.height=w/m_code.size;
             }
+            int offsx = (destination.dimensions().width-(m_code.size*s.width))/2;
+            int offsy = (destination.dimensions().height-(m_code.size*s.height))/2;
             int xx =0,yy=0;
             for(int y = 0; y<w;y+=s.height) {
                 xx=0;
                 for(int x = 0; x<w;x+=s.width) {
-                    rect16 r(point16(x,y),s);
-                    constexpr static const pixel_type black = gfx::convert<gfx::rgb_pixel<16>,pixel_type>(gfx::rgb_pixel<16>(0,true));
-                    constexpr static const pixel_type white = gfx::convert<gfx::rgb_pixel<16>,pixel_type>(gfx::rgb_pixel<16>(31,63,31));
+                    rect16 r(point16(x+offsx,y+offsy),s);
                     destination.fill(r,qr_t::point(&m_code,xx,yy)?black:white);
                     ++xx;
                 }
