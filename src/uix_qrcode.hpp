@@ -778,6 +778,10 @@ namespace uix {
     class qrcode : public control<ControlSurfaceType> {
         using base_type = control<ControlSurfaceType>;
         using qr_t = helpers::qr<false>;
+        constexpr static const gfx::rgba_pixel<32> color_black = gfx::rgba_pixel<32>(0,0,0,255);
+        constexpr static const gfx::rgba_pixel<32> color_white = gfx::rgba_pixel<32>(255,255,255,255);
+        constexpr static const gfx::rgba_pixel<32> color_transparent = gfx::rgba_pixel<32>(0,0,0,0);
+            
         bool m_dirty;
         const char* m_text; // ASCII only
         qr_ecc m_ecc;
@@ -786,6 +790,8 @@ namespace uix {
         void*(*m_allocator)(size_t size);
         void(*m_deallocator)(void* ptr);
         qr_t::code m_code;
+        gfx::rgba_pixel<32> m_color;
+        gfx::rgba_pixel<32> m_background_color;
         void recompute() {
             if(m_buffer!=nullptr) {
                 m_deallocator(m_buffer);
@@ -807,9 +813,13 @@ namespace uix {
         
         qrcode(uix::invalidation_tracker& parent, const palette_type* palette = nullptr,void*(*allocator)(size_t)=::malloc,void(*deallocator)(void*)=::free)
         : base_type(parent, palette), m_dirty(true),m_ecc(qr_ecc::medium),m_version(3),m_buffer(nullptr),m_allocator(allocator),m_deallocator(deallocator) {
+            m_background_color = color_transparent;
+            m_color = color_black;
         }
         qrcode(void*(*allocator)(size_t)=::malloc,void(*deallocator)(void*)=::free)
             : base_type(), m_dirty(true),m_ecc(qr_ecc::medium),m_version(3), m_buffer(nullptr),m_allocator(allocator),m_deallocator(deallocator) {
+            m_background_color = color_transparent;
+            m_color = color_black;
         }
         virtual ~qrcode() {
             if(m_buffer!=nullptr) {
@@ -840,6 +850,28 @@ namespace uix {
         void text(const char* value) {
             m_text=value;
             m_dirty = true;
+            this->invalidate();
+        }
+        /// @brief Indicates the color of the qrcode
+        /// @return The RGBA8888 color
+        gfx::rgba_pixel<32> color() const {
+            return m_color;
+        }
+        /// @brief Sets the color of the qrcode
+        /// @param value The RGBA8888 color
+        void color(gfx::rgba_pixel<32> value) {
+            m_color = value;
+            this->invalidate();
+        }
+        /// @brief Indicates the background color of the qrcode
+        /// @return The RGBA8888 color
+        gfx::rgba_pixel<32> background_color() const {
+            return m_background_color;
+        }
+        /// @brief Sets the color of the qrcode
+        /// @param value The RGBA8888 color
+        void background_color(gfx::rgba_pixel<32> value) {
+            m_background_color = value;
             this->invalidate();
         }
         /// @brief Indicates the qr version
@@ -916,10 +948,11 @@ namespace uix {
                 // couldn't allocate or something
                 return;
             }
-            constexpr static const pixel_type black = gfx::convert<gfx::rgb_pixel<16>,pixel_type>(gfx::rgb_pixel<16>(0,true));
-            constexpr static const pixel_type white = gfx::convert<gfx::rgb_pixel<16>,pixel_type>(gfx::rgb_pixel<16>(31,63,31));
-                    
-            destination.fill(destination.bounds(),white);
+            pixel_type p;
+            if(m_background_color.opacity()>0.f) {
+                gfx::convert(m_background_color,&p);
+                destination.fill(destination.bounds(),p);
+            }
             const uint16_t w = destination.dimensions().height<destination.dimensions().width?destination.dimensions().height:destination.dimensions().width;
             size16 s;
             if(m_code.size >=w) {
@@ -927,6 +960,7 @@ namespace uix {
             } else {
                 s.width=s.height=w/m_code.size;
             }
+            gfx::convert(m_color,&p);
             int offsx = (destination.dimensions().width-(m_code.size*s.width))/2;
             int offsy = (destination.dimensions().height-(m_code.size*s.height))/2;
             int xx =0,yy=0;
@@ -934,7 +968,9 @@ namespace uix {
                 xx=0;
                 for(int x = 0; x<w;x+=s.width) {
                     rect16 r(point16(x+offsx,y+offsy),s);
-                    destination.fill(r,qr_t::point(&m_code,xx,yy)?black:white);
+                    if(qr_t::point(&m_code,xx,yy)) {
+                        destination.fill(r,p);
+                    }
                     ++xx;
                 }
                 ++yy;
