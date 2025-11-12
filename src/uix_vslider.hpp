@@ -73,12 +73,12 @@ class vslider : public canvas_control<ControlSurfaceType> {
         } else {
             radius = this->dimensions().width * 0.5f;
         }
-        value += radius * .5f;
+        value += roundf(radius);
         spoint16 location;
         if (orientation() == uix_orientation::horizontal) {
-            location = spoint16(value, radius - 1.f);
+            location = spoint16(value, radius);
         } else {
-            location = spoint16((this->dimensions().width - radius) * .5f, value);
+            location = spoint16(radius, value);
         }
         gfx::canvas_style si = dst.style();
         si.fill_paint_type = gfx::paint_type::solid;
@@ -91,7 +91,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
             if (m_knob_shape == vslider_shape::ellipse) {
                 dst.ellipse(pointf(location.x, location.y), {radius - 1.0f, radius - 1.0f});
             } else if (m_knob_shape == vslider_shape::rect) {
-                rectf r(pointf(location.x, location.y), radius - 1.f - m_knob_border_width);
+                rectf r(pointf(location.x, location.y), radius - 1.f - (m_knob_border_width*.5f));
                 if (m_orientation == uix_orientation::horizontal) {
                     r.x2 = r.x1 + radius - 1.0f;
                 } else {
@@ -103,7 +103,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
             if (m_knob_shape == vslider_shape::ellipse) {
                 dst.ellipse({radius, radius}, (gfx::sizef)m_knob_radiuses);
             } else if (m_knob_shape == vslider_shape::rect) {
-                rectf r(pointf(location.x, location.y), radius - 1.f - m_knob_border_width);
+                rectf r(pointf(location.x, location.y), radius - 1.f - (m_knob_border_width*.5f));
                 if (m_orientation == uix_orientation::horizontal) {
                     r.x2 = r.x1 + radius - 1.0f;
                 } else {
@@ -119,14 +119,25 @@ class vslider : public canvas_control<ControlSurfaceType> {
         rectf bounds;
         if (m_orientation == uix_orientation::horizontal) {
             radius = this->dimensions().height * .05f;
-            bounds = rectf(radius, 0, this->dimensions().width - 1 - radius, m_bar_width - 1);
-            bounds.y1 = (m_bar_width + radius) * 0.5f;
-            bounds.y2 = bounds.y1 + m_bar_width + m_bar_border_width;
+
+            // Calculate the total height of the bar including border
+            float bar_total_height = m_bar_width + (2 * m_bar_border_width);
+
+            // Center the bar vertically within the control
+            float y_center = this->dimensions().height * 0.5f;
+            float y1 = y_center - (bar_total_height * 0.5f);
+
+            bounds = rectf(radius, y1, this->dimensions().width - 1 - radius, y1 + bar_total_height).offset(0,-1);
         } else {
             radius = this->dimensions().width * .05f;
-            bounds = rectf(0, radius, m_bar_width - 1, this->dimensions().height - 1 - radius);
-            bounds.x1 = (m_bar_width + radius) * 0.5f;
-            bounds.x2 = bounds.x1 + m_bar_width + m_bar_border_width;
+
+            // Calculate the total width of the bar including border
+            float bar_total_width = m_bar_width + (2 * m_bar_border_width);
+
+            // Center the bar horizontally within the control
+            float x1 = (this->dimensions().width - bar_total_width) * 0.5f;
+
+            bounds = rectf(x1, radius, x1 + bar_total_width, this->dimensions().height - 1 - radius).offset(-1,0);
         }
 
         gfx::canvas_style si = dst.style();
@@ -141,6 +152,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
         } else {
             dst.rectangle(bounds);
         }
+        dst.transform(matrix::create_identity());
         dst.render();
     }
 
