@@ -505,5 +505,6 @@ namespace uix {
             return uix_result::success;
         }
     };
+    using uix_pixel = gfx::rgba_pixel<32>;
 }
 #endif

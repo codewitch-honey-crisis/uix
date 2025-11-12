@@ -1,6 +1,7 @@
 #ifndef HTCW_UIX_CANVAS_CONTROL
 #define HTCW_UIX_CANVAS_CONTROL
 #include "uix_core.hpp"
+#include "gfx_draw_canvas.hpp"
 namespace uix {
 template<typename ControlSurfaceType>
 class canvas_control : public control<ControlSurfaceType> {

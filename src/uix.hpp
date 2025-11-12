@@ -8,6 +8,7 @@
 #include "uix_barcode.hpp"
 #include "uix_canvas_control.hpp"
 #include "uix_vbutton.hpp"
+#include "uix_vlabel.hpp"
 #include "uix_vslider.hpp"
 #include "uix_vswitch.hpp"
 #include "uix_image_box.hpp"

@@ -162,7 +162,11 @@ namespace uix {
     template<typename ControlSurfaceType>
     class barcode : public control<ControlSurfaceType> {
         using base_type = control<ControlSurfaceType>;
+        constexpr static const gfx::rgba_pixel<32> color_black = gfx::rgba_pixel<32>(0,0,0,255);
+        constexpr static const gfx::rgba_pixel<32> color_transparent = gfx::rgba_pixel<32>(0,0,0,0);
         const char* m_text;
+        gfx::rgba_pixel<32> m_background_color;
+        gfx::rgba_pixel<32> m_color;
         bool m_dirty;
         bool m_data[helpers::ean13<false>::size()];
         void recompute() {
@@ -177,9 +181,13 @@ namespace uix {
         
         barcode(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
         : base_type(parent, palette),m_text(nullptr), m_dirty(true) {
+            m_color = color_black;
+            m_background_color = color_transparent;
         }
         barcode()
             : base_type(), m_text(nullptr), m_dirty(true) {
+            m_color = color_black;
+            m_background_color = color_transparent;
         }
         barcode(barcode&& rhs) {
             this->do_move_control(rhs);
@@ -212,16 +220,44 @@ namespace uix {
             m_dirty = true;
             this->invalidate();
         }
+        /// @brief Indicates the color of the qrcode
+        /// @return The RGBA8888 color
+        gfx::rgba_pixel<32> color() const {
+            return m_color;
+        }
+        /// @brief Sets the color of the qrcode
+        /// @param value The RGBA8888 color
+        void color(gfx::rgba_pixel<32> value) {
+            m_color = value;
+            this->invalidate();
+        }
+        /// @brief Indicates the background color of the qrcode
+        /// @return The RGBA8888 color
+        gfx::rgba_pixel<32> background_color() const {
+            return m_background_color;
+        }
+        /// @brief Sets the color of the qrcode
+        /// @param value The RGBA8888 color
+        void background_color(gfx::rgba_pixel<32> value) {
+            m_background_color = value;
+            this->invalidate();
+        }
     protected:
         void do_move_control(barcode& rhs) {
             this->base_type::do_move_control(rhs);
             m_text = rhs.m_text;
             m_dirty = true;
+            m_color = rhs.m_color;
+            m_background_color = rhs.m_background_color;
+            
         }
         void do_copy_control(const barcode& rhs) {
             this->base_type::do_copy_control(rhs);
             m_text = rhs.m_text;
             m_dirty = true;
+            m_color = rhs.m_color;
+            m_background_color = rhs.m_background_color;
+            
         }
         virtual void on_before_paint() override {
             if(m_dirty) {
@@ -236,14 +272,29 @@ namespace uix {
             if(m_dirty) {
                 return;
             }
+            pixel_type bgpx;
+            bool draw_bg = false;
+            pixel_type px;
+            if(m_background_color.opacity()>0.f) {
+                if(gfx::gfx_result::success!=gfx::convert_palette_from(destination,m_background_color,&bgpx)) {
+                    return;
+                }
+                draw_bg=true;
+            }
+            if(gfx_result::success!=gfx::convert_palette_from(destination,m_color,&px)) {
+                return;
+            }
             const int sz = helpers::ean13<false>::size()<destination.dimensions().width?(int)helpers::ean13<false>::size():(int)destination.dimensions().width;
-            int w = destination.dimensions().width/sz;
+            int ww = destination.dimensions().width;
+            int w = ww/sz;
             int h = destination.dimensions().height;
-            constexpr static const pixel_type black = gfx::convert<gfx::rgb_pixel<16>,pixel_type>(gfx::rgb_pixel<16>(0,true));
+            if(w<1) w=1;
             int x = 0;
-            for(int i = 0;i<sz;++i) {
-                if(m_data[i]) {
-                    destination.fill(rect16(point16(x,0),size16(w,h)),black);
+            for(int i = 0;i<ww;++i) {
+                if(m_data[i] && i<=sz) {
+                    destination.fill(rect16(point16(x,0),size16(w,h)),px);
+                } else if(draw_bg) {
+                    destination.fill(rect16(point16(x,0),size16(w,h)),bgpx);
                 }
                 x+=w;
             }

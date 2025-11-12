@@ -29,7 +29,7 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     uint16_t m_knob_border_width;
     vswitch_shape m_knob_shape;
     size16 m_knob_radiuses;
-    gfx::vector_pixel m_back_color, m_border_color;
+    gfx::vector_pixel m_background_color, m_border_color;
     uint16_t m_border_width;
     size16 m_radiuses;
     uix_orientation m_orientation;
@@ -42,7 +42,7 @@ class vswitch : public canvas_control<ControlSurfaceType> {
         m_knob_border_width = rhs.m_knob_border_width;
         m_knob_shape = rhs.m_knob_shape;
         m_knob_radiuses = rhs.m_knob_radiuses;
-        m_back_color = rhs.m_back_color;
+        m_background_color = rhs.m_background_color;
         m_border_color = rhs.m_border_color;
         m_border_width = rhs.m_border_width;
         m_radiuses = rhs.m_radiuses;
@@ -88,7 +88,7 @@ class vswitch : public canvas_control<ControlSurfaceType> {
         }
         gfx::canvas_style si=dst.style();
         si.fill_paint_type = gfx::paint_type::solid;
-        si.fill_color = m_back_color;
+        si.fill_color = m_background_color;
         si.stroke_width = m_border_width;
         si.stroke_paint_type = gfx::paint_type::solid;
         si.stroke_color = m_border_color;
@@ -152,14 +152,14 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     vswitch(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette), m_knob_border_width(1),m_knob_shape(vswitch_shape::circle), m_knob_radiuses(2,2), m_border_width(1), m_radiuses(2, 2), m_value(false), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr) {
         m_knob_color = gfx::vector_pixel(255, 255, 255, 255);
         m_knob_border_color = gfx::vector_pixel(255, 0, 0, 0);
-        m_back_color = gfx::vector_pixel(255, 255, 255, 255);
+        m_background_color = gfx::vector_pixel(255, 255, 255, 255);
         m_border_color = gfx::vector_pixel(255,0, 0, 0);
     }
     /// @brief Constructs a slider from a given parent with an optional palette
     vswitch() : base_type(), m_knob_border_width(1),m_knob_shape(vswitch_shape::circle), m_knob_radiuses(2,2), m_border_width(1), m_radiuses(2, 2), m_value(false), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr) {
         m_knob_color = gfx::vector_pixel(255, 255, 255, 255);
         m_knob_border_color = gfx::vector_pixel(255, 0, 0, 0);
-        m_back_color = gfx::vector_pixel(255, 255, 255, 255);
+        m_background_color = gfx::vector_pixel(255, 255, 255, 255);
         m_border_color = gfx::vector_pixel(255,0, 0, 0);
     }
     /// @brief Indicates the color of the knob
@@ -223,15 +223,15 @@ class vswitch : public canvas_control<ControlSurfaceType> {
     }
     /// @brief Indicates the color of the switch background
     /// @return The color
-    gfx::rgba_pixel<32> back_color() const {
+    gfx::rgba_pixel<32> background_color() const {
         gfx::rgba_pixel<32> result;
-        convert(m_back_color,&result);
+        convert(m_background_color,&result);
         return result;
     }
     /// @brief Sets the color of the switch background
     /// @param value The color
-    void back_color(gfx::rgba_pixel<32> value) {
-        convert(value,&m_back_color);
+    void background_color(gfx::rgba_pixel<32> value) {
+        convert(value,&m_background_color);
         this->invalidate();
     }
     /// @brief Indicates the color of the border

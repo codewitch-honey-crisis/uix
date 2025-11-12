@@ -518,7 +518,7 @@ extern "C" void app_main() {
     b.offset_inplace(0,gray_slider.bounds().y2+10);
     rgb_hsl_switch.bounds(b);
     rgb_hsl_switch.radiuses({10,10});
-    rgb_hsl_switch.back_color(uix_color_t::gray);
+    rgb_hsl_switch.background_color(uix_color_t::gray);
     rgb_hsl_switch.border_color(uix_color_t::black);
     rgb_hsl_switch.knob_color(uix_color_t::light_gray);
     rgb_hsl_switch.knob_border_color(uix_color_t::black);
@@ -552,7 +552,7 @@ extern "C" void app_main() {
     b=srect16(0,0,73,31).center_horizontal(main_screen.bounds()).offset(0,rgb_hsl_switch.bounds().x2+10);
     reset_button.bounds(b);
     reset_button.text("Reset");
-    reset_button.back_color(uix_color_t::gray);
+    reset_button.background_color(uix_color_t::gray);
     reset_button.color(uix_color_t::black);
     reset_button.border_color(uix_color_t::black);
     reset_button.radiuses({10,10});
