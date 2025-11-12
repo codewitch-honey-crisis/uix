@@ -1,7 +1,7 @@
 #ifndef HTCW_UIX_VSLIDER
 #define HTCW_UIX_VSLIDER
-#include "uix_core.hpp"
 #include "uix_canvas_control.hpp"
+#include "uix_core.hpp"
 namespace uix {
 /// @brief The shape of the slider knob
 enum struct vslider_shape {
@@ -21,7 +21,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
     using palette_type = typename ControlSurfaceType::palette_type;
     using control_surface_type = ControlSurfaceType;
     /// @brief The callback type for when value() changes
-    typedef void (*on_value_changed_callback_type)(uint16_t value,void* state);
+    typedef void (*on_value_changed_callback_type)(uint16_t value, void* state);
     typedef void (*on_released_callback_type)(void* state);
 
    private:
@@ -66,19 +66,19 @@ class vslider : public canvas_control<ControlSurfaceType> {
             m_minimum = tmp;
         }
     }
-    void draw_knob(gfx::canvas& dst,uint16_t value) {
+    void draw_knob(gfx::canvas& dst, uint16_t value) {
         float radius;
-        if(m_orientation==uix_orientation::horizontal) {
+        if (m_orientation == uix_orientation::horizontal) {
             radius = this->dimensions().height * 0.5f;
         } else {
             radius = this->dimensions().width * 0.5f;
         }
-        value += radius*.5;
+        value += radius * .5f;
         spoint16 location;
-        if(orientation()==uix_orientation::horizontal) {
-            location = spoint16(value,radius-1.f);
+        if (orientation() == uix_orientation::horizontal) {
+            location = spoint16(value, radius - 1.f);
         } else {
-            location = spoint16((this->dimensions().width-radius)*.5f,value);
+            location = spoint16((this->dimensions().width - radius) * .5f, value);
         }
         gfx::canvas_style si = dst.style();
         si.fill_paint_type = gfx::paint_type::solid;
@@ -91,8 +91,8 @@ class vslider : public canvas_control<ControlSurfaceType> {
             if (m_knob_shape == vslider_shape::ellipse) {
                 dst.ellipse(pointf(location.x, location.y), {radius - 1.0f, radius - 1.0f});
             } else if (m_knob_shape == vslider_shape::rect) {
-                rectf r(pointf(location.x, location.y), (radius * 0.5f) - 1.0f);
-                if(m_orientation==uix_orientation::horizontal) {
+                rectf r(pointf(location.x, location.y), radius - 1.f - m_knob_border_width);
+                if (m_orientation == uix_orientation::horizontal) {
                     r.x2 = r.x1 + radius - 1.0f;
                 } else {
                     r.y2 = r.y1 + radius - 1.0f;
@@ -103,7 +103,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
             if (m_knob_shape == vslider_shape::ellipse) {
                 dst.ellipse({radius, radius}, (gfx::sizef)m_knob_radiuses);
             } else if (m_knob_shape == vslider_shape::rect) {
-                rectf r(pointf(location.x, location.y), radius - 1);
+                rectf r(pointf(location.x, location.y), radius - 1.f - m_knob_border_width);
                 if (m_orientation == uix_orientation::horizontal) {
                     r.x2 = r.x1 + radius - 1.0f;
                 } else {
@@ -113,23 +113,22 @@ class vslider : public canvas_control<ControlSurfaceType> {
             }
         }
         dst.render();
-
     }
     void draw_bar(gfx::canvas& dst) {
         float radius;
         rectf bounds;
-        if(m_orientation==uix_orientation::horizontal) {
+        if (m_orientation == uix_orientation::horizontal) {
             radius = this->dimensions().height * .05f;
             bounds = rectf(radius, 0, this->dimensions().width - 1 - radius, m_bar_width - 1);
-            bounds.y1 = (this->dimensions().height - m_bar_width) * 0.5f;
-            bounds.y2 = bounds.y1 + m_bar_width - 1;
+            bounds.y1 = (m_bar_width + radius) * 0.5f;
+            bounds.y2 = bounds.y1 + m_bar_width + m_bar_border_width;
         } else {
             radius = this->dimensions().width * .05f;
             bounds = rectf(0, radius, m_bar_width - 1, this->dimensions().height - 1 - radius);
-            bounds.x1 = (this->dimensions().width - m_bar_width) * 0.5f;
-            bounds.x2 = bounds.x1 + m_bar_width - 1;
+            bounds.x1 = (m_bar_width + radius) * 0.5f;
+            bounds.x2 = bounds.x1 + m_bar_width + m_bar_border_width;
         }
-        
+
         gfx::canvas_style si = dst.style();
         si.fill_paint_type = gfx::paint_type::solid;
         si.fill_color = m_bar_color;
@@ -189,16 +188,16 @@ class vslider : public canvas_control<ControlSurfaceType> {
     /// @brief Constructs a slider from a given parent with an optional palette
     /// @param parent The parent the control is bound to - usually the screen
     /// @param palette The palette associated with the control. This is usually the screen's palette.
-    vslider(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette),m_knob_border_width(1), m_knob_shape(vslider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_width(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value_internal(-1), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr), m_on_released_cb(nullptr), m_on_released_state(nullptr) {
+    vslider(invalidation_tracker& parent, const palette_type* palette = nullptr) : base_type(parent, palette), m_knob_border_width(1), m_knob_shape(vslider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_width(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value_internal(-1), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr), m_on_released_cb(nullptr), m_on_released_state(nullptr) {
         m_knob_color = gfx::vector_pixel(255, 255, 255, 255);
-        m_knob_border_color = gfx::vector_pixel(255,0, 0, 0);
+        m_knob_border_color = gfx::vector_pixel(255, 0, 0, 0);
         m_bar_color = gfx::vector_pixel(255, 255, 255, 255);
         m_bar_border_color = gfx::vector_pixel(255, 0, 0, 0);
     }
     /// @brief Constructs a slider from a given parent with an optional palette
-    vslider() : base_type(),  m_knob_border_width(1), m_knob_shape(vslider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_width(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value_internal(-1), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr), m_on_released_cb(nullptr), m_on_released_state(nullptr) {
+    vslider() : base_type(), m_knob_border_width(1), m_knob_shape(vslider_shape::ellipse), m_knob_radiuses(0, 0), m_bar_border_width(1), m_bar_width(5), m_bar_radiuses(2, 2), m_minimum(0), m_maximum(100), m_value_internal(-1), m_on_value_changed_cb(nullptr), m_on_value_changed_state(nullptr), m_on_released_cb(nullptr), m_on_released_state(nullptr) {
         m_knob_color = gfx::vector_pixel(255, 255, 255, 255);
-        m_knob_border_color = gfx::vector_pixel(255,0, 0, 0);
+        m_knob_border_color = gfx::vector_pixel(255, 0, 0, 0);
         m_bar_color = gfx::vector_pixel(255, 255, 255, 255);
         m_bar_border_color = gfx::vector_pixel(255, 0, 0, 0);
     }
@@ -206,26 +205,26 @@ class vslider : public canvas_control<ControlSurfaceType> {
     /// @return The color
     gfx::rgba_pixel<32> knob_color() const {
         gfx::rgba_pixel<32> result;
-        gfx::convert(m_knob_color,&result);
+        gfx::convert(m_knob_color, &result);
         return result;
     }
     /// @brief Sets the color of the knob
     /// @param value The color
     void knob_color(gfx::rgba_pixel<32> value) {
-        gfx::convert(value,&m_knob_color);
+        gfx::convert(value, &m_knob_color);
         this->invalidate();
     }
     /// @brief Indicates the color of the knob border
     /// @return The color
     gfx::rgba_pixel<32> knob_border_color() const {
         gfx::rgba_pixel<32> result;
-        gfx::convert(m_knob_border_color,&result);
+        gfx::convert(m_knob_border_color, &result);
         return result;
     }
     /// @brief Sets the color of the knob border
     /// @param value The color
     void knob_border_color(gfx::rgba_pixel<32> value) {
-        gfx::convert(value,&m_knob_border_color);
+        gfx::convert(value, &m_knob_border_color);
         this->invalidate();
     }
     /// @brief Indicates the width of the knob border
@@ -265,26 +264,26 @@ class vslider : public canvas_control<ControlSurfaceType> {
     /// @return The color
     gfx::rgba_pixel<32> color() const {
         gfx::rgba_pixel<32> result;
-        gfx::convert(m_bar_color,&result);
+        gfx::convert(m_bar_color, &result);
         return result;
     }
     /// @brief Sets the color of the bar
     /// @param value The color
     void color(gfx::rgba_pixel<32> value) {
-        gfx::convert(value,&m_bar_color);
+        gfx::convert(value, &m_bar_color);
         this->invalidate();
     }
     /// @brief Indicates the color of the bar border
     /// @return The color
     gfx::rgba_pixel<32> border_color() const {
         gfx::rgba_pixel<32> result;
-        gfx::convert(m_bar_border_color,&result);
+        gfx::convert(m_bar_border_color, &result);
         return result;
     }
     /// @brief Sets the color of the bar border
     /// @param value The color
     void border_color(gfx::rgba_pixel<32> value) {
-        gfx::convert(value,&m_bar_border_color);
+        gfx::convert(value, &m_bar_border_color);
         this->invalidate();
     }
     /// @brief Indicates the width of the bar border
@@ -329,7 +328,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
     /// @brief Sets the orientation of the slider
     /// @param value The slider orientation - vertical or horizontal
     void orientation(uix_orientation value) {
-        if(m_orientation!=value) {
+        if (m_orientation != value) {
             uint16_t v = this->value();
             m_orientation = value;
             this->value(v);
@@ -360,27 +359,27 @@ class vslider : public canvas_control<ControlSurfaceType> {
     /// @brief Indicates the value
     /// @return The value
     uint16_t value() const {
-        const float range_internal = orientation()==uix_orientation::horizontal?this->dimensions().width-this->dimensions().height*.5f+1:this->dimensions().height-this->dimensions().width*.5f+1;
-        const float range = m_maximum-m_minimum+1;
-        const float mult = range/range_internal;
-        uint16_t result =  (m_value_internal*mult)+m_minimum;
-        if(orientation()==uix_orientation::vertical) {
-            result = range-result-1;
+        const float range_internal = orientation() == uix_orientation::horizontal ? this->dimensions().width - this->dimensions().height * .5f + 1 : this->dimensions().height - this->dimensions().width * .5f + 1;
+        const float range = m_maximum - m_minimum + 1;
+        const float mult = range / range_internal;
+        uint16_t result = (m_value_internal * mult) + m_minimum;
+        if (orientation() == uix_orientation::vertical) {
+            result = roundf(range - result - 1.f);
         }
         return result;
     }
     /// @brief Sets the value
     /// @param value The value
     void value(uint16_t value) {
-        if(value<m_minimum||value>m_maximum) {
+        if (value < m_minimum || value > m_maximum) {
             return;
         }
-        const float range_internal = orientation()==uix_orientation::horizontal?this->dimensions().width-this->dimensions().height*.5f+1:this->dimensions().height-this->dimensions().width*.5f+1;
-        const float range = m_maximum-m_minimum+1;
-        const float mult = range_internal/range;
-        uint16_t new_value = (value-m_minimum)*mult;
-        if(orientation()==uix_orientation::vertical) {
-            new_value = range_internal-new_value-1;
+        const float range_internal = orientation() == uix_orientation::horizontal ? this->dimensions().width - this->dimensions().height * .5f + 1 : this->dimensions().height - this->dimensions().width * .5f + 1;
+        const float range = m_maximum - m_minimum + 1;
+        const float mult = range_internal / range;
+        uint16_t new_value = roundf((value - m_minimum) * mult);
+        if (orientation() == uix_orientation::vertical) {
+            new_value = range_internal - new_value - 1;
         }
         if (m_value_internal != new_value) {
             m_value_internal = new_value;
@@ -420,20 +419,21 @@ class vslider : public canvas_control<ControlSurfaceType> {
     virtual void on_before_paint() override {
         validate_values();
     }
-protected:
+
+   protected:
     /// @brief Called when the slider is painted
     /// @param destination The draw destination
     /// @param clip The clipping rectangle
     virtual void on_paint(gfx::canvas& destination, const srect16& clip) override {
         draw_bar(destination);
-        //const float mult = 1.f / (float)range;
+        // const float mult = 1.f / (float)range;
         float radius;
-        if(m_orientation==uix_orientation::horizontal) {
+        if (m_orientation == uix_orientation::horizontal) {
             radius = this->bounds().height() * 0.5f;
         } else {
             radius = this->bounds().width() * 0.5f;
         }
-        if(m_orientation==uix_orientation::horizontal) {
+        if (m_orientation == uix_orientation::horizontal) {
             draw_knob(destination, m_value_internal);
         } else {
             draw_knob(destination, m_value_internal);
@@ -446,24 +446,24 @@ protected:
     virtual bool on_touch(size_t locations_size, const spoint16* locations) override {
         float ext;
         float i;
-        if(m_orientation==uix_orientation::horizontal) {
+        if (m_orientation == uix_orientation::horizontal) {
             i = locations->x;
-            ext = this->dimensions().width-1;
+            ext = this->dimensions().width - 1;
             if (i < 0.0f) i = 0.0f;
             if (i >= ext) {
-                i = ext ;
+                i = ext;
             }
         } else {
             i = locations->y;
-            ext = this->dimensions().height-1;
+            ext = this->dimensions().height - 1;
             if (i < 0.0f) i = 0.0f;
             if (i >= ext) {
-                i = ext ;
+                i = ext;
             }
-            i=ext-i;
+            i = ext - i;
         }
         const int range = m_maximum - m_minimum + 1;
-        float v = ((float)i) / (((float)ext)/range)+m_minimum;
+        float v = ((float)i) / (((float)ext) / range) + m_minimum;
         if (v > maximum()) {
             v = maximum();
         }
@@ -475,10 +475,10 @@ protected:
     }
     /// @brief Called when the slider is released
     virtual void on_release() override {
-        if(m_on_released_cb!=nullptr) {
+        if (m_on_released_cb != nullptr) {
             m_on_released_cb(m_on_released_state);
         }
     }
 };
 }  // namespace uix
-#endif  
+#endif
