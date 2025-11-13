@@ -78,6 +78,8 @@ namespace uix {
         /// @brief Indicates the active screen
         /// @return returns the active screen for this display, if any.
         screen_base& active_screen() const;
+        /// @brief Sets the active screen for the control
+        /// @param value The screen to set
         void active_screen(screen_base& value);
         /// @brief Call when a flush has finished so the screen can recycle the buffers. Should either be called in the flush callback implementation (no DMA) or via a DMA completion callback that signals when the previous transfer was completed.
         void flush_complete();
@@ -85,6 +87,9 @@ namespace uix {
         bool flush_pending() const;
         /// @brief Indicates that the display is currently flushing
         bool flushing() const;
+        /// @brief Updates the display
+        /// @param full True to do a full update, false to update maximum of one flush.
+        /// @return True if the screen was updated, otherwise false
         uix_result update(bool full = true);
         /// @brief Indicates if the screen has any dirty regions to update and flush
         /// @return True if the screen needs updating, otherwise false

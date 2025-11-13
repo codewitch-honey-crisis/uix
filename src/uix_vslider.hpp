@@ -78,7 +78,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
         if (orientation() == uix_orientation::horizontal) {
             location = spoint16(value, radius);
         } else {
-            location = spoint16(radius, value);
+            location = spoint16(radius, value-radius*.5f);
         }
         gfx::canvas_style si = dst.style();
         si.fill_paint_type = gfx::paint_type::solid;
@@ -371,7 +371,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
     /// @brief Indicates the value
     /// @return The value
     uint16_t value() const {
-        const float range_internal = orientation() == uix_orientation::horizontal ? this->dimensions().width - this->dimensions().height * .5f + 1 : this->dimensions().height - this->dimensions().width * .5f + 1;
+        const float range_internal = orientation() == uix_orientation::horizontal ? this->dimensions().width - this->dimensions().height + 1 : this->dimensions().height - this->dimensions().width + 1;
         const float range = m_maximum - m_minimum + 1;
         const float mult = range / range_internal;
         uint16_t result = (m_value_internal * mult) + m_minimum;
@@ -445,11 +445,8 @@ class vslider : public canvas_control<ControlSurfaceType> {
         } else {
             radius = this->bounds().width() * 0.5f;
         }
-        if (m_orientation == uix_orientation::horizontal) {
-            draw_knob(destination, m_value_internal);
-        } else {
-            draw_knob(destination, m_value_internal);
-        }
+        draw_knob(destination, m_value_internal);
+    
     }
     /// @brief Called when the slider is touched
     /// @param locations_size The count of locations (only the first one is respected)

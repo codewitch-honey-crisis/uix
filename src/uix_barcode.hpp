@@ -178,12 +178,15 @@ namespace uix {
         using control_surface_type = ControlSurfaceType;
         using pixel_type = typename base_type::pixel_type;
         using palette_type = typename base_type::palette_type;
-        
+        /// @brief Constructs a new instance of the barcode
+        /// @param parent The parent screen
+        /// @param palette The palette, if any
         barcode(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
         : base_type(parent, palette),m_text(nullptr), m_dirty(true) {
             m_color = color_black;
             m_background_color = color_transparent;
         }
+        /// @brief Constructs a new instance of the barcode
         barcode()
             : base_type(), m_text(nullptr), m_dirty(true) {
             m_color = color_black;
