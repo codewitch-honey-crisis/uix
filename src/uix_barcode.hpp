@@ -284,7 +284,7 @@ namespace uix {
                 }
                 draw_bg=true;
             }
-            if(gfx_result::success!=gfx::convert_palette_from(destination,m_color,&px)) {
+            if(gfx::gfx_result::success!=gfx::convert_palette_from(destination,m_color,&px)) {
                 return;
             }
             const int sz = helpers::ean13<false>::size()<destination.dimensions().width?(int)helpers::ean13<false>::size():(int)destination.dimensions().width;
