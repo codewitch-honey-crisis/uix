@@ -152,7 +152,7 @@ class vslider : public canvas_control<ControlSurfaceType> {
         } else {
             dst.rectangle(bounds);
         }
-        dst.transform(matrix::create_identity());
+        dst.transform(gfx::matrix::create_identity());
         dst.render();
     }
 
