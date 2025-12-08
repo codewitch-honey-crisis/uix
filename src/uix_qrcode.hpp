@@ -763,7 +763,7 @@ namespace uix {
             }
 
             static bool point(code *qrcode, uint8_t x, uint8_t y) {
-                if (x < 0 || x >= qrcode->size || y < 0 || y >= qrcode->size) {
+                if (x >= qrcode->size || y >= qrcode->size) {
                     return false;
                 }
 
