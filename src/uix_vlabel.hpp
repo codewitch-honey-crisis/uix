@@ -31,14 +31,14 @@ private:
         }
         m_label_text.ttf_font = m_font_stream;
         if(m_font_size<=0.f) {
-            const float target_width = (this->dimensions().width-m_border_width*2);
+            const float target_width = (this->dimensions().width-m_border_width*2)*.8f;
             float fsize = this->dimensions().height-(m_border_width*2) ;
             m_label_text_path.initialize();
             do {
                 m_label_text_path.clear();
                 m_label_text.font_size = fsize;
                 m_label_text_path.text({0.f,0.f},m_label_text);
-                m_label_text_bounds = m_label_text_path.bounds(true);
+                m_label_text_bounds = m_label_text_path.bounds(false);
                 --fsize;
                 
             } while(fsize>0.f && m_label_text_bounds.width()>=target_width);
@@ -52,7 +52,7 @@ private:
         m_label_text_bounds.offset_inplace(m_border_width,m_border_width);
         m_matrix = gfx::matrix::create_identity();
         float w,h;
-        const int text_width = (m_label_text_bounds.width()*1.2f);
+        const int text_width = (m_label_text_bounds.width());
         switch(m_text_justify) {
             case uix::uix_justify::top_left:
                 m_matrix.translate_inplace(-m_label_text_bounds.x1,(-m_label_text_bounds.y1));
@@ -64,7 +64,7 @@ private:
                 break;
             case uix::uix_justify::top_right:
                 m_matrix.translate_inplace(-m_label_text_bounds.x1,(-m_label_text_bounds.y1));
-                w = this->dimensions().width - text_width;
+                w = this->dimensions().width - text_width*1.2;
                 m_matrix.translate_inplace(w,0);
                 break;
             case uix::uix_justify::center_left:
@@ -80,7 +80,7 @@ private:
                 break;
             case uix::uix_justify::center_right:
                 m_matrix.translate_inplace(0,(-m_label_text_bounds.y1));
-                w = this->dimensions().width - text_width;
+                w = this->dimensions().width - text_width*1.2;
                 h=(this->dimensions().height-m_label_text_bounds.height())*.5f;
                 m_matrix.translate_inplace(w,h);
                 break;
@@ -96,7 +96,7 @@ private:
                 m_matrix.translate_inplace(w,h);
                 break;
             default: //uix::uix_justify::bottom_right:
-                w = this->dimensions().width - text_width;
+                w = this->dimensions().width - text_width*1.2;
                 h = this->dimensions().height - m_label_text_bounds.height();
                 m_matrix.translate_inplace(w,h);
                 break;
