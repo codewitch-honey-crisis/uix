@@ -5,8 +5,18 @@
 #include "uix_core.hpp"
 namespace uix {
 enum struct screen_update_mode {
+    // update parts pf the display using backbuffering
     partial = 0,
+    // update the backbuffer containing the entire display directly
     direct = 1
+};
+enum struct screen_update_strategy {
+    // full-dirty-width strips, top-to-bottom (your current behavior)
+    throughput = 0,
+    // full-width strips, but cut lines snap to control edges when possible
+    balanced = 1,
+    // guillotine partition: vertical cuts too, to avoid splitting controls
+    minimize_paints = 2
 };
 class screen_base : public invalidation_tracker {
    public:
@@ -49,6 +59,12 @@ class screen_base : public invalidation_tracker {
     /// @brief Sets the update mode for the screen
     /// @param mode The update mode
     virtual void update_mode(screen_update_mode mode) = 0;
+    /// @brief The strategy used to update the screen, either favoring minimum redraws, minimum transfers, or balanced
+    /// @return The screen update strategy
+    virtual screen_update_strategy update_strategy() const = 0;
+    /// @brief The strategy used to update the screen, either favoring minimum redraws, minimum transfers, or balanced
+    /// @param value The screen update strategy
+    virtual void update_strategy(screen_update_strategy value) = 0;
     /// @brief Indicates the size of the transfer buffer(s)
     /// @return a size_t containing the size of the buffer
     virtual size_t buffer_size() const = 0;
@@ -184,9 +200,15 @@ class screen_ex final : public screen_base {
         m_background_color = rhs.m_background_color;
         m_it_dirties = rhs.m_it_dirties;
         rhs.m_it_dirties = nullptr;
-        m_bmp_lines = rhs.m_bmp_lines;
-        rhs.m_bmp_lines = 0;
-        m_bmp_y = rhs.m_bmp_y;
+        m_update_strategy = rhs.m_update_strategy;
+        m_active_strategy = rhs.m_active_strategy;
+        m_rendering = rhs.m_rendering;
+        m_strip_y = rhs.m_strip_y;
+        for (uint8_t i = 0; i < region_stack_size; ++i)
+            m_region_stack[i] = rhs.m_region_stack[i];
+        m_sp = rhs.m_sp;
+        m_banding = rhs.m_banding;
+        m_band_region = rhs.m_band_region;
         m_last_touched = rhs.m_last_touched;
         m_on_touch_callback = rhs.m_on_touch_callback;
         rhs.m_on_touch_callback = nullptr;
@@ -249,6 +271,292 @@ class screen_ex final : public screen_base {
         }
         return false;
     }
+    enum struct plan_status { has_tile, done, out_of_memory };
+
+    static int s_iabs(int v) { return v < 0 ? -v : v; }
+
+    bool fits_buffer(const rect16& r) const {
+        return native_bitmap_type::sizeof_buffer(
+                   size16(r.width(), r.height())) <= m_buffer_size;
+    }
+    // max vertically-aligned line count of width w that fits one buffer
+    uint16_t max_lines_for(uint16_t w) const {
+        size_t stride = native_bitmap_type::sizeof_buffer(size16(w, 1));
+        if (stride == 0) return 0;
+        int lines = v_align_down((int)(m_buffer_size / stride));
+        if (lines > dimensions().height) lines = dimensions().height;
+        while (lines > 0 &&
+               native_bitmap_type::sizeof_buffer(size16(w, (uint16_t)lines)) >
+                   m_buffer_size) {
+            lines -= 1;
+        }
+        return (uint16_t)lines;
+    }
+
+    // A horizontal cut at row `cy` (next strip starts at cy) is "clean" if it
+    // does not slice through any visible control within R.
+    bool is_clean_hcut(const rect16& R, uint16_t cy) const {
+        for (typename controls_type::const_iterator it = m_controls.cbegin();
+             it != m_controls.cend(); ++it) {
+            control_type* p = it->ctrl;
+            if (!p->visible()) continue;
+            srect16 cb = p->bounds();
+            if (!cb.intersects((srect16)R)) continue;
+            srect16 ci = cb.crop((srect16)R);
+            if ((int)ci.y1 < (int)cy && (int)cy <= (int)ci.y2) return false;
+        }
+        return true;
+    }
+    bool is_clean_vcut(const rect16& R, uint16_t cx) const {
+        for (typename controls_type::const_iterator it = m_controls.cbegin();
+             it != m_controls.cend(); ++it) {
+            control_type* p = it->ctrl;
+            if (!p->visible()) continue;
+            srect16 cb = p->bounds();
+            if (!cb.intersects((srect16)R)) continue;
+            srect16 ci = cb.crop((srect16)R);
+            if ((int)ci.x1 < (int)cx && (int)cx <= (int)ci.x2) return false;
+        }
+        return true;
+    }
+    // best clean vertical cut (aligned, interior), nearest R's horizontal mid
+    bool find_clean_vcut(const rect16& R, uint16_t& out_cx) const {
+        int mid = (int)R.x1 + (int)R.width() / 2;
+        bool found = false; int best = 0, bestd = 0x7fffffff;
+        for (typename controls_type::const_iterator it = m_controls.cbegin();
+             it != m_controls.cend(); ++it) {
+            control_type* p = it->ctrl;
+            if (!p->visible()) continue;
+            srect16 cb = p->bounds();
+            if (!cb.intersects((srect16)R)) continue;
+            srect16 ci = cb.crop((srect16)R);
+            int cand[2] = { h_align_down((int)ci.x1),
+                            h_align_up((int)ci.x2 + 1) };
+            for (int k = 0; k < 2; ++k) {
+                int c = cand[k];
+                if (c <= (int)R.x1 || c > (int)R.x2) continue;
+                if (!is_clean_vcut(R, (uint16_t)c)) continue;
+                int d = s_iabs(c - mid);
+                if (d < bestd) { bestd = d; best = c; found = true; }
+            }
+        }
+        if (found) out_cx = (uint16_t)best;
+        return found;
+    }
+    bool find_clean_hcut(const rect16& R, uint16_t& out_cy) const {
+        int mid = (int)R.y1 + (int)R.height() / 2;
+        bool found = false; int best = 0, bestd = 0x7fffffff;
+        for (typename controls_type::const_iterator it = m_controls.cbegin();
+             it != m_controls.cend(); ++it) {
+            control_type* p = it->ctrl;
+            if (!p->visible()) continue;
+            srect16 cb = p->bounds();
+            if (!cb.intersects((srect16)R)) continue;
+            srect16 ci = cb.crop((srect16)R);
+            int cand[2] = { v_align_down((int)ci.y1),
+                            v_align_up((int)ci.y2 + 1) };
+            for (int k = 0; k < 2; ++k) {
+                int c = cand[k];
+                if (c <= (int)R.y1 || c > (int)R.y2) continue;
+                if (!is_clean_hcut(R, (uint16_t)c)) continue;
+                int d = s_iabs(c - mid);
+                if (d < bestd) { bestd = d; best = c; found = true; }
+            }
+        }
+        if (found) out_cy = (uint16_t)best;
+        return found;
+    }
+
+    plan_status throughput_next(rect16& out) {
+        for (;;) {
+            if (m_it_dirties == m_dirty_rects.cend()) return plan_status::done;
+            rect16 D = align_up(*m_it_dirties);
+            if (m_strip_y > D.y2) {
+                ++m_it_dirties;
+                if (m_it_dirties == m_dirty_rects.cend())
+                    return plan_status::done;
+                m_strip_y = align_up(*m_it_dirties).y1;
+                continue;
+            }
+            uint16_t ml = max_lines_for(D.width());
+            if (ml == 0) return plan_status::out_of_memory;
+            int cut = (int)m_strip_y + ml;
+            if (cut > (int)D.y2 + 1) cut = (int)D.y2 + 1;
+            out = rect16(D.x1, m_strip_y, D.x2, (uint16_t)(cut - 1));
+            m_strip_y = (uint16_t)cut;
+            return plan_status::has_tile;
+        }
+    }
+
+    plan_status balanced_next(rect16& out) {
+        for (;;) {
+            if (m_it_dirties == m_dirty_rects.cend()) return plan_status::done;
+            rect16 D = align_up(*m_it_dirties);
+            if (m_strip_y > D.y2) {
+                ++m_it_dirties;
+                if (m_it_dirties == m_dirty_rects.cend())
+                    return plan_status::done;
+                m_strip_y = align_up(*m_it_dirties).y1;
+                continue;
+            }
+            uint16_t ml = max_lines_for(D.width());
+            if (ml == 0) return plan_status::out_of_memory;
+            int forced = (int)m_strip_y + ml;
+            if (forced > (int)D.y2 + 1) forced = (int)D.y2 + 1;
+            int chosen;
+            if (is_clean_hcut(D, (uint16_t)forced)) {
+                chosen = forced;  // the full strip already lands in a gap
+            } else {
+                // pull the cut up to the largest clean control-edge boundary
+                int best = 0; bool found = false;
+                for (typename controls_type::const_iterator it =
+                         m_controls.cbegin();
+                     it != m_controls.cend(); ++it) {
+                    control_type* p = it->ctrl;
+                    if (!p->visible()) continue;
+                    srect16 cb = p->bounds();
+                    if (!cb.intersects((srect16)D)) continue;
+                    srect16 ci = cb.crop((srect16)D);
+                    int cand[2] = { v_align_down((int)ci.y1),
+                                    v_align_up((int)ci.y2 + 1) };
+                    for (int k = 0; k < 2; ++k) {
+                        int c = cand[k];
+                        if (c <= (int)m_strip_y || c > forced) continue;
+                        if (!is_clean_hcut(D, (uint16_t)c)) continue;
+                        if (c > best) { best = c; found = true; }
+                    }
+                }
+                chosen = found ? best : forced;  // forced => unavoidable split
+            }
+            out = rect16(D.x1, m_strip_y, D.x2, (uint16_t)(chosen - 1));
+            m_strip_y = (uint16_t)chosen;
+            return plan_status::has_tile;
+        }
+    }
+
+    plan_status guillotine_next(rect16& out) {
+        for (;;) {
+            if (m_banding) {
+                uint16_t ml = max_lines_for(m_band_region.width());
+                if (ml == 0) return plan_status::out_of_memory;
+                if (ml >= m_band_region.height()) {
+                    out = m_band_region;
+                    m_banding = false;
+                    return plan_status::has_tile;
+                }
+                out = rect16(m_band_region.x1, m_band_region.y1,
+                             m_band_region.x2,
+                             (uint16_t)(m_band_region.y1 + ml - 1));
+                m_band_region = rect16(m_band_region.x1,
+                                       (uint16_t)(m_band_region.y1 + ml),
+                                       m_band_region.x2, m_band_region.y2);
+                return plan_status::has_tile;
+            }
+            if (m_sp == 0) {
+                if (m_it_dirties == m_dirty_rects.cend())
+                    return plan_status::done;
+                m_region_stack[m_sp++] = align_up(*m_it_dirties);
+                ++m_it_dirties;
+            }
+            rect16 R = m_region_stack[--m_sp];
+            if (fits_buffer(R)) { out = R; return plan_status::has_tile; }
+            uint16_t cx = 0, cy = 0;
+            bool hv = find_clean_vcut(R, cx);
+            bool hh = find_clean_hcut(R, cy);
+            if (hv || hh) {
+                bool use_v;
+                if (hv && hh) {
+                    int dv = s_iabs((int)cx - ((int)R.x1 + (int)R.width() / 2));
+                    int dh = s_iabs((int)cy - ((int)R.y1 + (int)R.height() / 2));
+                    use_v = (dv <= dh);  // prefer the more balanced split
+                } else {
+                    use_v = hv;
+                }
+                rect16 a, b;
+                if (use_v) {
+                    a = rect16(R.x1, R.y1, (uint16_t)(cx - 1), R.y2);
+                    b = rect16(cx, R.y1, R.x2, R.y2);
+                } else {
+                    a = rect16(R.x1, R.y1, R.x2, (uint16_t)(cy - 1));
+                    b = rect16(R.x1, cy, R.x2, R.y2);
+                }
+                if ((int)m_sp + 2 > (int)region_stack_size) {
+                    // stack would overflow -> band R in place (never drops area)
+                    m_banding = true; m_band_region = R; continue;
+                }
+                m_region_stack[m_sp++] = b;  // process 'a' (top/left) first
+                m_region_stack[m_sp++] = a;
+                continue;
+            }
+            // no clean cut on either axis -> forced band
+            m_banding = true; m_band_region = R; continue;
+        }
+    }
+
+    plan_status next_tile(rect16& out) {
+        switch (m_active_strategy) {
+            case screen_update_strategy::throughput: return throughput_next(out);
+            case screen_update_strategy::balanced:   return balanced_next(out);
+            default:                                 return guillotine_next(out);
+        }
+    }
+
+    void planner_init() {
+        m_rendering = true;
+        m_active_strategy = m_update_strategy;
+        m_it_dirties = m_dirty_rects.cbegin();
+        // too many disjoint dirty rects for the guillotine stack? degrade.
+        if (m_active_strategy == screen_update_strategy::minimize_paints &&
+            m_dirty_rects.size() > region_stack_size) {
+            m_active_strategy = screen_update_strategy::balanced;
+        }
+        if (m_active_strategy == screen_update_strategy::throughput ||
+            m_active_strategy == screen_update_strategy::balanced) {
+            m_strip_y = align_up(*m_it_dirties).y1;
+        } else {
+            m_sp = 0;
+            m_banding = false;
+        }
+    }
+
+    void finalize_paint() {
+        for (typename controls_type::iterator it = m_controls.begin();
+             it != m_controls.end(); ++it) {
+            if (it->state == 1) {
+                it->ctrl->on_after_paint();
+                it->state = 0;
+            }
+        }
+        m_it_dirties = nullptr;
+        m_rendering = false;
+        m_banding = false;
+        m_sp = 0;
+    }
+
+    // identical to your existing per-band paint loop; shared by all strategies
+    void render_subrect(const srect16& subrect, uint8_t* buf) {
+        bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
+        bmp.fill(bmp.bounds(), m_background_color);
+        for (typename controls_type::iterator ctl_it = m_controls.begin();
+             ctl_it != m_controls.end(); ++ctl_it) {
+            control_type* pctl = ctl_it->ctrl;
+            if (pctl->visible() && pctl->bounds().intersects(subrect)) {
+                srect16 surface_rect = pctl->bounds();
+                spoint16 bmp_offset(surface_rect.x1 - subrect.x1,
+                                    surface_rect.y1 - subrect.y1);
+                surface_rect.offset_inplace(-subrect.x1, -subrect.y1);
+                srect16 surface_clip = pctl->bounds().crop(subrect);
+                surface_clip.offset_inplace(-pctl->bounds().x1,
+                                            -pctl->bounds().y1);
+                control_surface_type surface(bmp, surface_rect, bmp_offset);
+                if (ctl_it->state == 0) {
+                    pctl->on_before_paint();
+                    ctl_it->state = 1;
+                }
+                pctl->on_paint(surface, surface_clip);
+            }
+        }
+    }
     typename controls_type::iterator find_touch_target(
         spoint16 pt, typename controls_type::iterator pend = nullptr) {
         // loop through the controls in z-order back to front
@@ -288,7 +596,7 @@ class screen_ex final : public screen_base {
             return uix_result::success;
         }
         // if not rendering, process touch
-        if (m_it_dirties == nullptr && m_on_touch_callback != nullptr) {
+        if (!m_rendering && m_on_touch_callback != nullptr) {
             point16 locs[5];
             spoint16 slocs[5];
             size_t locs_size = sizeof(locs);
@@ -342,163 +650,41 @@ class screen_ex final : public screen_base {
             }
         }
         switch (m_update_mode) {
-            case screen_update_mode::partial: {
                 // rendering process
                 // note we skip this until we have a free buffer
+            case screen_update_mode::partial: {
                 if (m_on_flush_callback != nullptr && m_buffer_size != 0 &&
                     m_buffer1 != nullptr && m_dirty_rects.size() != 0) {
-                    // wait for flush completion
-                    if (m_buffer2 == nullptr) {
-                        if (m_flushing) {
-                            return uix_result::success;
-                        }
+                    // single-buffer: wait for the in-flight flush to finish
+                    if (m_buffer2 == nullptr && m_flushing) {
+                        return uix_result::success;
                     }
-                    if (m_it_dirties == nullptr) {
-                        // m_it_dirties is null when not rendering
-                        // so basically when it's null this is the first call
-                        // and we initialize some stuff
-                        m_it_dirties = m_dirty_rects.cbegin();
-                        const rect16 aligned = align_up(*m_it_dirties);
-                        size_t bmp_stride = native_bitmap_type::sizeof_buffer(
-                            size16(aligned.width(), 1));
-                        size_t bmp_min = native_bitmap_type::sizeof_buffer(
-                            size16(aligned.width(), v_align_up(1)));
-                        m_bmp_lines = v_align_down(m_buffer_size / bmp_stride);
-                        if (m_bmp_lines > dimensions().height) {
-                            m_bmp_lines = dimensions().height;
-                        }
-                        while (native_bitmap_type::sizeof_buffer(aligned.width(), m_bmp_lines) > m_buffer_size) {
-                            m_bmp_lines -= 1;
-                        }
-                        if (bmp_min > m_buffer_size) {
-                            return uix_result::out_of_memory;
-                        }
-                        m_bmp_y = 0;
-                    } else {
-                        // if we're past the current
-                        // dirty rectangle bounds:
-                        rect16 aligned = align_up(*m_it_dirties);
-                        if (m_bmp_y + aligned.y1 + m_bmp_lines >= aligned.y2) {
-                            // go to the next dirty rectangle
-                            ++m_it_dirties;
-                            if (m_it_dirties == m_dirty_rects.cend()) {
-                                // if we're at the end, shut it down
-                                // first tell any necessary controls we're done
-                                // rendering
-                                for (typename controls_type::iterator it =
-                                         m_controls.begin();
-                                     it != m_controls.end(); ++it) {
-                                    if (it->state == 1) {
-                                        it->ctrl->on_after_paint();
-                                        it->state = 0;
-                                    }
-                                }
-                                // clear all dirty rects
-                                m_it_dirties = nullptr;
-                                return validate_all();
-                            }
-                            aligned = align_up(*m_it_dirties);
-                            // now we compute the bitmap stride (one line, in bytes)
-                            size_t bmp_stride = native_bitmap_type::sizeof_buffer(
-                                size16(aligned.width(), 1));
-                            size_t bmp_min = native_bitmap_type::sizeof_buffer(
-                                size16(aligned.width(), v_align_up(1)));
-                            // now we figure out how many lines we can have in these
-                            // subrects based on the total memory we're working with
-                            m_bmp_lines = v_align_down(m_buffer_size / bmp_stride);
-                            if (m_bmp_lines > dimensions().height) {
-                                m_bmp_lines = dimensions().height;
-                            }
-                            while (native_bitmap_type::sizeof_buffer(aligned.width(), m_bmp_lines) > m_buffer_size) {
-                                m_bmp_lines -= 1;
-                            }
-                            // if we don't have enough space for at least one line,
-                            // error out
-                            if (bmp_min > m_buffer_size) {
-                                return uix_result::out_of_memory;
-                            }
-                            // start at the top of the dirty rectangle:
-                            m_bmp_y = 0;
-                        } else {
-                            while (native_bitmap_type::sizeof_buffer(aligned.width(), m_bmp_lines) > m_buffer_size) {
-                                m_bmp_lines -= 1;
-                            }
-                            // move down to the next subrect
-                            m_bmp_y += m_bmp_lines;
-                        }
+                    if (!m_rendering) {
+                        planner_init();
                     }
-                    const rect16 aligned = align_up(*m_it_dirties);
-                    // create a subrect the same width as the dirty, and m_bmp_lines
-                    // high starting at m_bmp_y within the dirty rectangle
-                    srect16 subrect(aligned.x1, aligned.y1 + m_bmp_y, aligned.x2,
-                                    aligned.y1 + m_bmp_lines + m_bmp_y - 1);
-                    // make sure the subrect is cropped within the bounds
-                    // of the dirties. sometimes the last one overhangs.
-                    subrect = subrect.crop((srect16)aligned);
-                    // create a bitmap for the subrect over the write buffer
+                    rect16 tile;
+                    plan_status st = next_tile(tile);
+                    if (st == plan_status::out_of_memory) {
+                        finalize_paint();
+                        return uix_result::out_of_memory;
+                    }
+                    if (st == plan_status::done) {
+                        finalize_paint();
+                        return validate_all();
+                    }
+                    srect16 subrect = (srect16)tile;
                     uint8_t* buf = (uint8_t*)m_write_buffer;
-                    // assert(bitmap_type::sizeof_buffer((size16)subrect.dimensions())<=m_buffer_size);
-                    bitmap_type bmp((size16)subrect.dimensions(), buf, m_palette);
-                    // fill it with the screen color
-                    // Serial.println("Start painting controls");
-
-                    bmp.fill(bmp.bounds(), m_background_color);
-                    // Serial.println("Background painted (buffer touched)");
-                    // for each control
-                    for (typename controls_type::iterator ctl_it = m_controls.begin();
-                         ctl_it != m_controls.end(); ++ctl_it) {
-                        control_type* pctl = ctl_it->ctrl;
-                        // if it's visible and intersects this subrect
-                        if (pctl->visible() && pctl->bounds().intersects(subrect)) {
-                            // create the offset surface rectangle for drawing
-                            srect16 surface_rect = pctl->bounds();
-                            spoint16 bmp_offset(surface_rect.x1 - subrect.x1,
-                                                surface_rect.y1 - subrect.y1);
-                            surface_rect.offset_inplace(-subrect.x1, -subrect.y1);
-                            // create the clip rectangle for the control
-                            srect16 surface_clip = pctl->bounds().crop(subrect);
-                            surface_clip.offset_inplace(-pctl->bounds().x1,
-                                                        -pctl->bounds().y1);
-                            // create the control surface
-                            control_surface_type surface(bmp, surface_rect, bmp_offset);
-                            // if we haven't called on_before_paint, do so now
-                            if (ctl_it->state == 0) {
-                                pctl->on_before_paint();
-                                ctl_it->state = 1;
-                            }
-                            // and paint
-                            pctl->on_paint(surface, surface_clip);
-                        }
+                    render_subrect(subrect, buf);
+                    // DMA double-buffer early-exit (unchanged)
+                    if (m_buffer2 != nullptr && m_flushing) {
+                        m_flush_pending_bounds = (rect16)subrect;
+                        m_flush_pending = true;
+                        return uix_result::success;
                     }
-                    // Serial.println("Done painting controls");
-                    if (m_buffer2 != nullptr) {
-                        if (m_flushing) {
-                            m_flush_pending_bounds = (rect16)subrect;
-                            m_flush_pending = true;
-                            // Serial.println("Awaiting DMA transfer");
-                            return uix_result::success;
-                        }
-                    }
-                    // Serial.println("DMA available. Switching buffers");
-                    // switch out m_write_buffer so if it points to m_buffer1 it now
-                    // points to m_buffer2 and vice versa. if there's just one buffer,
-                    // we don't change anything.
                     switch_buffers();
-                    // Serial.println("Initiating flush");
-                    // tell it we're flushing and run the callback
                     m_flushing = 1;
-                    // initiate the DMA transfer on whatever was *previously*
-                    // m_write_buffer before switch_buffers was called.
-                    m_on_flush_callback(
-                        (rect16)subrect, buf,
-                        m_on_flush_callback_state);  // initiate DMA transfer
-                    // Serial.println("Flush started");
-                    // the above may return immediately before the
-                    // transfer is complete. To take advantage of
-                    // this, rather than wait, we swap out to a
-                    // second buffer and continue drawing while
-                    // the transfer is in progress. That's what
-                    // switch_buffers() is doing beforehand just above
+                    m_on_flush_callback((rect16)subrect, buf,
+                                        m_on_flush_callback_state);
                 }
             } break;
             case screen_update_mode::direct: {
@@ -574,8 +760,15 @@ class screen_ex final : public screen_base {
     controls_type m_controls;
     pixel_type m_background_color;
     typename dirty_rects_type::const_iterator m_it_dirties;
-    uint16_t m_bmp_lines;
-    uint16_t m_bmp_y;
+    screen_update_strategy m_update_strategy;   // requested strategy
+    screen_update_strategy m_active_strategy;   // strategy for the current frame (may degrade)
+    bool m_rendering;                           // true while a frame is being tiled
+    uint16_t m_strip_y;                         // cursor for throughput/balanced
+    static constexpr uint8_t region_stack_size = 24;  // ~200 bytes, fixed, no heap
+    rect16 m_region_stack[region_stack_size];   // guillotine work stack
+    uint8_t m_sp;                               // stack pointer
+    bool m_banding;                             // guillotine forced-band fallback active
+    rect16 m_band_region;                       // remaining region being force-banded
     on_touch_callback_type m_on_touch_callback;
     void* m_on_touch_callback_state;
     typename controls_type::iterator m_last_touched;
@@ -619,13 +812,18 @@ class screen_ex final : public screen_base {
           m_controls(allocator, reallocator, deallocator),
           m_background_color(pixel_type()),
           m_it_dirties(nullptr),
-          m_bmp_lines(0),
-          m_bmp_y(0),
           m_on_touch_callback(nullptr),
           m_on_touch_callback_state(nullptr),
           m_last_touched(nullptr),
           m_flush_pending(false),
-          m_update_mode(screen_update_mode::partial) {}
+          m_update_mode(screen_update_mode::partial) 
+          m_update_strategy(screen_update_strategy::balanced),
+          m_active_strategy(screen_update_strategy::balanced),
+          m_rendering(false),
+          m_strip_y(false),
+          m_sp(0),
+          m_banding(false)
+          {}
     /// @brief Constructs an uninitialized screen instance
     /// @param allocator The memory allocator to use for the controls (malloc)
     /// @param reallocator The memory reallocator to use for the controls
@@ -649,12 +847,17 @@ class screen_ex final : public screen_base {
           m_controls(allocator, reallocator, deallocator),
           m_background_color(pixel_type()),
           m_it_dirties(nullptr),
-          m_bmp_lines(0),
-          m_bmp_y(0),
           m_on_touch_callback(nullptr),
           m_on_touch_callback_state(nullptr),
           m_last_touched(nullptr),
-          m_flush_pending(false) {}
+          m_flush_pending(false),
+          m_update_mode(screen_update_mode::partial),
+          m_update_strategy(screen_update_strategy::balanced),
+          m_active_strategy(screen_update_strategy::balanced),
+          m_rendering(false),
+          m_strip_y(false),
+          m_sp(0),
+          m_banding(false) {}
     /// @brief Moves a screen
     /// @param rhs The screen to move
     screen_ex(screen_ex&& rhs) { do_move_control(rhs); }
@@ -688,15 +891,24 @@ class screen_ex final : public screen_base {
     virtual bool flushing() const override { return m_flushing != 0; }
     /// @brief Indicates the update mode for the screen
     /// @return The update mode
-    virtual screen_update_mode update_mode() const {
+    virtual screen_update_mode update_mode() const override {
         return m_update_mode;
     }
     /// @brief Sets the update mode for the screen
     /// @param value The update mode
-    virtual void update_mode(screen_update_mode value) {
+    virtual void update_mode(screen_update_mode value) override {
         m_update_mode = value;
     }
-
+    /// @brief The strategy used to update the screen, either favoring minimum redraws, minimum transfers, or balanced
+    /// @return The screen update strategy
+    virtual screen_update_strategy update_strategy() const override {
+        return m_update_strategy;
+    }
+    /// @brief The strategy used to update the screen, either favoring minimum redraws, minimum transfers, or balanced
+    /// @param value The screen update strategy
+    virtual void update_strategy(screen_update_strategy value) override {
+        m_update_strategy = value;
+    }
     /// @brief Indicates the size of the transfer buffer(s)
     /// @return a size_t containing the size of the buffer
     virtual size_t buffer_size() const override { return m_buffer_size; }
@@ -896,7 +1108,7 @@ class screen_ex final : public screen_base {
         if (res != uix_result::success) {
             return res;
         }
-        while (full && m_it_dirties != nullptr) {
+        while (full && m_rendering) {
             res = update_impl();
             if (m_flush_pending) {
                 return uix_result::success;
