@@ -760,6 +760,12 @@ class screen_ex final : public screen_base {
     controls_type m_controls;
     pixel_type m_background_color;
     typename dirty_rects_type::const_iterator m_it_dirties;
+    on_touch_callback_type m_on_touch_callback;
+    void* m_on_touch_callback_state;
+    typename controls_type::iterator m_last_touched;
+    bool m_flush_pending;
+    rect16 m_flush_pending_bounds;
+    screen_update_mode m_update_mode;
     screen_update_strategy m_update_strategy;   // requested strategy
     screen_update_strategy m_active_strategy;   // strategy for the current frame (may degrade)
     bool m_rendering;                           // true while a frame is being tiled
@@ -769,13 +775,7 @@ class screen_ex final : public screen_base {
     uint8_t m_sp;                               // stack pointer
     bool m_banding;                             // guillotine forced-band fallback active
     rect16 m_band_region;                       // remaining region being force-banded
-    on_touch_callback_type m_on_touch_callback;
-    void* m_on_touch_callback_state;
-    typename controls_type::iterator m_last_touched;
-    bool m_flush_pending;
-    rect16 m_flush_pending_bounds;
-    screen_update_mode m_update_mode;
-
+    
    public:
     /// @brief Constructs a screen given a buffer size, and one or two buffers,
     /// plus an optional palette
