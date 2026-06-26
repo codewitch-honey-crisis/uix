@@ -816,7 +816,7 @@ class screen_ex final : public screen_base {
           m_on_touch_callback_state(nullptr),
           m_last_touched(nullptr),
           m_flush_pending(false),
-          m_update_mode(screen_update_mode::partial) 
+          m_update_mode(screen_update_mode::partial),
           m_update_strategy(screen_update_strategy::balanced),
           m_active_strategy(screen_update_strategy::balanced),
           m_rendering(false),
