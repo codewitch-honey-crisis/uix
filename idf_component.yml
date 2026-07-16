@@ -2,4 +2,4 @@ version: "1.10.2"
 description: "A UI/UX library for embedded and IoT devices, for use with htcw_gfx"
 dependencies:
   idf: ">=5.0.0"
-  codewitch-honey-crisis/htcw_gfx: "^2.3.2"
+  codewitch-honey-crisis/htcw_gfx: "^2.3.3"
