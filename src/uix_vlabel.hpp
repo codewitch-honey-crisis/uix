@@ -25,23 +25,38 @@ private:
     gfx::sizef m_radiuses;
     float m_border_width;
     gfx::rgba_pixel<32> m_border_color;
+   
     void build_label_path_untransformed() {
         if(m_font_stream==nullptr) {
             return;
         }
         m_label_text.ttf_font = m_font_stream;
         if(m_font_size<=0.f) {
-            const float target_width = (this->dimensions().width-m_border_width*2)*.8f;
+            const float target_width = (this->dimensions().width-m_border_width*2);
             float fsize = this->dimensions().height-(m_border_width*2) ;
-            m_label_text_path.initialize();
-            do {
+            if (m_label_text_path.initialized()) {
                 m_label_text_path.clear();
-                m_label_text.font_size = fsize;
-                m_label_text_path.text({0.f,0.f},m_label_text);
-                m_label_text_bounds = m_label_text_path.bounds(false);
-                --fsize;
-                
-            } while(fsize>0.f && m_label_text_bounds.width()>=target_width);
+            } else {
+                m_label_text_path.initialize();
+            }
+            m_label_text.font_size = fsize;
+            m_label_text_path.text({0.f, 0.f}, m_label_text);
+            m_label_text_bounds = m_label_text_path.bounds(false);
+            float scale = 1.0f;
+            float tw = target_width*.8f;
+            while(true) {
+                gfx::rectf ro=m_label_text_bounds;
+                if(scale>0.f && ((int)((ro.x2-ro.x1+1.f)*scale))>=tw) {
+                    scale-=0.01;
+                } else  {
+                    fsize*=scale;
+                    m_label_text_path.clear();
+                    m_label_text.font_size = fsize;
+                    m_label_text_path.text({0.f, 0.f}, m_label_text);
+                    m_label_text_bounds = m_label_text_path.bounds(false);
+                    break;
+                }
+            }
         } else {
             m_label_text_path.initialize();
             m_label_text_path.clear();
