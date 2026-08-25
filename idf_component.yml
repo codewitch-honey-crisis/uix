@@ -1,4 +1,4 @@
-version: "1.16.2"
+version: "1.17.1"
 description: "A UI/UX library for embedded and IoT devices, for use with htcw_gfx"
 dependencies:
   idf: ">=5.0.0"
