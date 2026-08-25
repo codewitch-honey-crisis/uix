@@ -18,6 +18,7 @@ namespace uix {
         size_t m_buffer_size;
         uint8_t* m_buffer1, *m_buffer2;
         screen_update_mode m_update_mode;
+        screen_update_strategy m_update_strategy;
     public:
         // constructs a new instance
         display();
@@ -27,6 +28,12 @@ namespace uix {
         /// @brief Sets the update mode for the screen
         /// @param mode The update mode
         void update_mode(screen_update_mode mode);
+        /// @brief The strategy used to update the screen, either favoring minimum redraws, minimum transfers, or balanced
+        /// @return The screen update strategy
+        screen_update_strategy update_strategy() const;
+        /// @brief The strategy used to update the screen, either favoring minimum redraws, minimum transfers, or balanced
+        /// @param value The screen update strategy
+        void update_strategy(screen_update_strategy value);
         /// @brief Indicates the size of the transfer buffer(s)
         /// @return a size_t containing the size of the buffer
         size_t buffer_size() const;
@@ -94,6 +101,8 @@ namespace uix {
         /// @brief Indicates if the screen has any dirty regions to update and flush
         /// @return True if the screen needs updating, otherwise false
         bool dirty() const;
+        // commits any changed properties to the active screen
+        void commit();
     };
 }
 #endif // HTCW_UIX_DISPLAY

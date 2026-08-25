@@ -11,7 +11,7 @@ enum struct screen_update_mode {
     direct = 1
 };
 enum struct screen_update_strategy {
-    // full-dirty-width strips, top-to-bottom (your current behavior)
+    // full-dirty-width strips, top-to-bottom
     throughput = 0,
     // full-width strips, but cut lines snap to control edges when possible
     balanced = 1,

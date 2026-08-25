@@ -1,7 +1,7 @@
 #include <uix_display.hpp>
 
 namespace uix {
-        display::display() :  m_active_screen(nullptr),m_on_flush_callback(nullptr),m_on_wait_flush_callback(nullptr),m_on_touch_callback(nullptr),m_update_mode(screen_update_mode::partial) {
+        display::display() : m_active_screen(nullptr),m_on_flush_callback(nullptr),m_on_wait_flush_callback(nullptr),m_on_touch_callback(nullptr),m_update_mode(screen_update_mode::partial),m_update_strategy(uix::screen_update_strategy::balanced) {
             
         }
         screen_update_mode display::update_mode() const {
@@ -10,7 +10,16 @@ namespace uix {
         void display::update_mode(screen_update_mode mode) {
             m_update_mode = mode;
         }
-        
+        /// @brief The strategy used to update the screen, either favoring minimum redraws, minimum transfers, or balanced
+        /// @return The screen update strategy
+        screen_update_strategy display::update_strategy() const {
+            return m_update_strategy;
+        }
+        /// @brief The strategy used to update the screen, either favoring minimum redraws, minimum transfers, or balanced
+        /// @param value The screen update strategy
+        void display::update_strategy(screen_update_strategy value) {
+            m_update_strategy = value;
+        }
         size_t display::buffer_size() const {
             return m_buffer_size;
         }
@@ -72,16 +81,7 @@ namespace uix {
                 m_active_screen->on_touch_callback(nullptr);
             }
             m_active_screen = &value;
-            if(m_active_screen!=nullptr) {
-                m_active_screen->update_mode(m_update_mode);
-                m_active_screen->on_flush_callback(m_on_flush_callback,m_on_flush_callback_state);
-                m_active_screen->on_wait_flush_callback(m_on_wait_flush_callback);
-                m_active_screen->on_touch_callback(m_on_touch_callback,m_on_touch_callback_state);
-                m_active_screen->buffer_size(m_buffer_size);
-                m_active_screen->buffer1(m_buffer1);
-                m_active_screen->buffer2(m_buffer2);
-                m_active_screen->invalidate();
-            }
+            commit();
         }
         bool display::flush_pending() const {
             if(m_active_screen!=nullptr) {
@@ -111,6 +111,19 @@ namespace uix {
                 return m_active_screen->dirty();
             }
             return false;
+        }
+        void display::commit() {
+            if(m_active_screen!=nullptr) {
+                m_active_screen->update_mode(m_update_mode);
+                m_active_screen->update_strategy(m_update_strategy);
+                m_active_screen->on_flush_callback(m_on_flush_callback,m_on_flush_callback_state);
+                m_active_screen->on_wait_flush_callback(m_on_wait_flush_callback);
+                m_active_screen->on_touch_callback(m_on_touch_callback,m_on_touch_callback_state);
+                m_active_screen->buffer_size(m_buffer_size);
+                m_active_screen->buffer1(m_buffer1);
+                m_active_screen->buffer2(m_buffer2);
+                m_active_screen->invalidate();
+            }
         }
 }
 

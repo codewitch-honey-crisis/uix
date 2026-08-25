@@ -6,6 +6,8 @@ template <typename ControlSurfaceType>
 class battery : public control<ControlSurfaceType> {
     using base_type = control<ControlSurfaceType>;
     constexpr static const gfx::rgba_pixel<32> color_white = gfx::rgba_pixel<32>(255, 255, 255, 255);
+    gfx::mask_draw_cache* m_dc;
+    gfx::mask_draw_cache m_local_dc;
     gfx::rgba_pixel<32> m_inner_color;
     gfx::rgba_pixel<32> m_color;
     bool m_dirty;
@@ -65,13 +67,13 @@ class battery : public control<ControlSurfaceType> {
     /// @param parent The parent screen
     /// @param palette The palette, if any
     battery(uix::invalidation_tracker& parent, const palette_type* palette = nullptr)
-        : base_type(parent, palette), m_level(nullptr), m_dirty(true),m_skip_inner(false),m_level(0) {
+        : base_type(parent, palette), m_dc(&m_local_dc), m_dirty(true),m_skip_inner(false),m_level(0) {
         m_color = color_white;
         m_inner_color = color_white;
     }
     /// @brief Constructs a new instance of the battery
     battery()
-        : base_type(), m_dirty(true),m_skip_inner(false),m_level(0) {
+        : base_type(), m_dc(&m_local_dc),m_dirty(true),m_skip_inner(false),m_level(0) {
         m_color = color_white;
         m_inner_color = color_white;
     }
@@ -104,27 +106,38 @@ class battery : public control<ControlSurfaceType> {
         m_level = value;
         this->invalidate();
     }
-    /// @brief Indicates the color of the qrcode
+    /// @brief Indicates the color of the battery
     /// @return The RGBA8888 color
     gfx::rgba_pixel<32> color() const {
         return m_color;
     }
-    /// @brief Sets the color of the qrcode
+    /// @brief Sets the color of the battery
     /// @param value The RGBA8888 color
     void color(gfx::rgba_pixel<32> value) {
         m_color = value;
         this->invalidate();
     }
-    /// @brief Indicates the background color of the qrcode
+    /// @brief Indicates the inner color of the battery
     /// @return The RGBA8888 color
     gfx::rgba_pixel<32> inner_color() const {
         return m_inner_color;
     }
-    /// @brief Sets the color of the qrcode
+    /// @brief Sets the inner color of the battery
     /// @param value The RGBA8888 color
     void inner_color(gfx::rgba_pixel<32> value) {
         m_inner_color = value;
         this->invalidate();
+    }
+
+    /// @brief Indicates the draw cache used for the battery
+    /// @return The mask_draw_cache
+    gfx::mask_draw_cache& draw_cache() const {
+        return *m_dc;
+    }
+    /// @brief Sets the draw cache used for the battery
+    /// @param value The mask_draw_cache
+    void draw_cache(gfx::mask_draw_cache& value) {
+        m_dc = &value;
     }
 
    protected:
@@ -191,7 +204,7 @@ class battery : public control<ControlSurfaceType> {
             return;
         }
         gfx::spath16 path(s_outer_size,m_points);
-        gfx::draw::aa_filled_polygon(destination, path, m_color);;
+        gfx::draw::aa_filled_polygon(destination, path, m_color,gfx::fill_rule::even_odd,m_dc);
     
         if (!m_skip_inner) {
             gfx::draw::filled_rectangle(destination, m_inner, m_inner_color);
