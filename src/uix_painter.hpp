@@ -14,7 +14,7 @@ namespace uix {
         /// @brief The callback type for paint operations
         typedef void(*on_paint_callback_type)(control_surface_type& destination,const srect16& clip,void* state);
         /// @brief The callback type for the touch operation
-        typedef void(*on_touch_callback_type)(size_t locations_size,const spoint16* locations,void* state);
+        typedef bool(*on_touch_callback_type)(size_t locations_size,const spoint16* locations,void* state);
         /// @brief The callback type for touch release operation
         typedef void(*on_release_callback_type)(void* state);
     private:
@@ -115,8 +115,7 @@ namespace uix {
         /// @return True if handled, otherwise false
         virtual bool on_touch(size_t locations_size,const spoint16* locations) override {
             if(m_on_touch_cb!=nullptr) {
-                m_on_touch_cb(locations_size,locations,m_on_touch_cb_state);
-                return true;
+                return m_on_touch_cb(locations_size,locations,m_on_touch_cb_state);
             }
             return false;
         }

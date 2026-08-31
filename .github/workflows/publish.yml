@@ -1,0 +1,51 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write   # lets the release step create a GitHub release
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build package
+        run: pio package pack
+
+      - name: Publish to PlatformIO
+        env:
+          PLATFORMIO_AUTH_TOKEN: ${{ secrets.PLATFORMIO_AUTH_TOKEN }}
+        run: pio package publish --owner codewitch-honey-crisis --non-interactive ./*.tar.gz
+
+      - name: Upload to ESP Component Registry
+        uses: espressif/upload-components-ci-action@v2
+        with:
+          components: "htcw_uix: ."
+          namespace: "codewitch-honey-crisis"
+          api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./*.tar.gz
