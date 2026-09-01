@@ -39,7 +39,7 @@ protected:
     /// @brief Moves the control
     /// @param value The control to move
     void do_move_control(canvas_control& value) {
-        base_type::on_copy_control(value);
+        base_type::on_move_control(value);
         m_canvas.deinitialize();
         m_canvas.dimensions(size16(value.width(),value.height()));
         value.m_canvas.deinitialize();

@@ -4,6 +4,7 @@
 #include "uix_screen.hpp"
 #include "uix_label.hpp"
 #include "uix_painter.hpp"
+#include "uix_color_picker.hpp"
 #include "uix_qrcode.hpp"
 #include "uix_barcode.hpp"
 #include "uix_battery.hpp"
