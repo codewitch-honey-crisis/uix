@@ -1,9 +1,12 @@
 #ifndef HTCW_UIX_HPP
 #define HTCW_UIX_HPP
 #include "uix_core.hpp"
+#include "uix_painter.hpp"
 #include "uix_screen.hpp"
 #include "uix_label.hpp"
-#include "uix_painter.hpp"
+#include "uix_slider.hpp"
+#include "uix_switch.hpp"
+#include "uix_button.hpp"
 #include "uix_color_picker.hpp"
 #include "uix_qrcode.hpp"
 #include "uix_barcode.hpp"
